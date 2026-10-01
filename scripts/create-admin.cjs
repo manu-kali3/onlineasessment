@@ -21,6 +21,8 @@ async function main() {
   const email = (process.env.ADMIN_EMAIL || "").trim().toLowerCase();
   const password = process.env.ADMIN_PASSWORD || "";
   const name = (process.env.ADMIN_NAME || "Portal Administrator").trim();
+  // Only admin and recruiter are grantable here; candidates self-register.
+  const role = process.env.ADMIN_ROLE === "recruiter" ? "recruiter" : "admin";
 
   if (!email || !email.includes("@")) {
     console.log("Set ADMIN_EMAIL and ADMIN_PASSWORD, for example:");
@@ -46,12 +48,18 @@ async function main() {
   }
 
   await sql.query(
-    "insert into users (id, email, password_hash, full_name, role, email_verified, session_version, created_at) values ($1,$2,$3,$4,'admin',true,1,now())",
-    [randomBytes(12).toString("hex"), email, bcrypt.hashSync(password, 12), name],
+    "insert into users (id, email, password_hash, full_name, role, email_verified, session_version, created_at) values ($1,$2,$3,$4,$5,true,1,now())",
+    [randomBytes(12).toString("hex"), email, bcrypt.hashSync(password, 12), name, role],
   );
 
-  console.log(`Created admin: ${email}`);
-  console.log("Sign in at /login. You can add recruiters from the admin area.");
+  console.log(`Created ${role}: ${email}`);
+  console.log("Sign in at /login — you will be sent to /admin.");
+  console.log("");
+  console.log(
+    "There is no user-management screen yet, so further staff accounts come from\n" +
+      "the CLI too: set ADMIN_EMAIL, ADMIN_PASSWORD, and ADMIN_ROLE (admin or\n" +
+      "recruiter), then run this again.",
+  );
 }
 
 main().catch((e) => {

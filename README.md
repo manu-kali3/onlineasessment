@@ -40,6 +40,39 @@ $env:ADMIN_PASSWORD='<12+ characters>'
 npm run db:create-admin
 ```
 
+### Signing in as staff
+
+Registration only ever creates **candidate** accounts — deliberately, so nobody
+can grant themselves recruiter or admin access by signing up. Staff accounts are
+therefore created out of band:
+
+```bash
+# first admin
+$env:ADMIN_EMAIL='you@yourdomain.com'
+$env:ADMIN_PASSWORD='<12+ characters>'
+$env:ADMIN_NAME='Site Administrator'
+npm run db:create-admin
+
+# a recruiter, optionally
+$env:ADMIN_ROLE='recruiter'
+npm run db:create-admin
+```
+
+Then sign in at `/login`. The role decides where you land and what you can open:
+
+| Role | Lands on | Can open | Blocked from |
+| --- | --- | --- | --- |
+| `admin` | `/admin` | everything, plus candidate identities in blind review | — |
+| `recruiter` | `/admin` | overview, assessments, analytics | `/admin/integrations` |
+| `assessor` | `/admin` | overview, analytics | `/admin/integrations`, candidate identities |
+
+Staff accounts are created with `email_verified = true`, so they sign in without
+the confirmation step that candidates go through.
+
+There is **no user-management screen yet** — `/admin` has overview,
+assessments, analytics, and integrations, but no way to invite or promote
+anyone. Every staff account therefore comes from the CLI until that exists.
+
 For local development you can opt into the demo accounts explicitly with
 `SEED_DEMO=1 npm run db:seed`. They all use the password `Passw0rd!`:
 
@@ -79,6 +112,8 @@ If demo accounts were ever seeded against a real database, remove them with
 | `npm run smoke:login-page` | Assert the login page exposes no demo credentials |
 | `npm run smoke:resend` | Resend cooldown, token rotation, and enumeration resistance |
 | `npm run smoke:diagnose` | Registration/resend status reporting and rate limits |
+| `npm run smoke:verify-link` | Follow the emailed verification link and confirm it verifies |
+| `npm run smoke:staff` | Staff sign-in and per-role page access |
 | `npm run db:prune-unverified` | Delete unverified accounts left by test runs |
 
 The smoke scripts expect a server on `$BASE` (default `http://localhost:3120`),
@@ -340,6 +375,11 @@ exceeding the per-IP budget returns 429.
 
 Real email delivery was confirmed through the Resend API (`email:test`).
 
+Staff access (20 assertions, `smoke:staff`): each of admin, recruiter, and
+assessor signs in, is redirected to `/admin`, receives a session cookie, can
+open the pages its role allows, and is redirected away from
+`/admin/integrations`, which is admin-only.
+
 The rest is covered by the candidate, recruiter, and blind-review checks below,
 all of which pass against the live database:
 
@@ -398,6 +438,10 @@ Honest gaps, in rough priority order:
   and there is a `responses.assessorComment` column, but no screen to award a
   rubric score. This is the main gap: a submitted attempt stays `submitted`
   until someone can grade it.
+- **No user management.** There is no screen for an admin to invite a
+  recruiter, promote someone, deactivate an account, or reset another user's
+  password. Staff accounts can only be created by running
+  `db:create-admin` with database access.
 - **Real-time websockets.** Results are read on navigation, not pushed.
 
 ## Environment notes
