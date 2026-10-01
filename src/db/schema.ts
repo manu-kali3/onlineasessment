@@ -66,6 +66,11 @@ export const proctorSeverity = pgEnum("proctor_severity", [
   "critical",
 ]);
 
+export const tokenPurpose = pgEnum("token_purpose", [
+  "email_verification",
+  "password_reset",
+]);
+
 export const integrationProvider = pgEnum("integration_provider", [
   "workday",
   "greenhouse",
@@ -89,6 +94,14 @@ export const users = pgTable(
     // PII kept separate so blind-review mode can strip it from assessor views
     dateOfBirth: timestamp("date_of_birth", { withTimezone: true }),
     gender: text("gender"),
+    /**
+     * Candidates must confirm ownership of the address before they can sign in.
+     * Staff accounts created by an admin are marked verified directly, so this
+     * gate applies only to self-registration.
+     */
+    emailVerified: boolean("email_verified").notNull().default(false),
+    /** Bumped on password change so every existing session cookie stops working. */
+    sessionVersion: integer("session_version").notNull().default(1),
     accessibilityProfile: jsonb("accessibility_profile")
       .$type<{
         textToSpeech?: boolean;
@@ -104,6 +117,35 @@ export const users = pgTable(
   (t) => [
     uniqueIndex("users_email_idx").on(t.email),
     index("users_role_idx").on(t.role),
+  ],
+);
+
+/**
+ * Single-use tokens for email verification and password reset.
+ *
+ * Only a SHA-256 hash of the token is stored, so a database leak cannot be
+ * replayed against the live service. Tokens are short-lived, and `consumedAt`
+ * makes them single-use even if one is somehow reused before expiry.
+ */
+export const authTokens = pgTable(
+  "auth_tokens",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    purpose: tokenPurpose("purpose").notNull(),
+    tokenHash: text("token_hash").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    consumedAt: timestamp("consumed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("auth_tokens_hash_idx").on(t.tokenHash),
+    index("auth_tokens_user_idx").on(t.userId),
+    index("auth_tokens_expiry_idx").on(t.expiresAt),
   ],
 );
 

@@ -75,7 +75,26 @@ export async function POST(req: Request) {
     );
   }
 
-  await createSession({ id: user.id, role: user.role, email: user.email });
+  // Self-registered candidates must confirm their address before they can sign
+  // in. This is checked after the password comparison so that an unverified
+  // account is not distinguishable from a wrong password by an outsider.
+  if (!user.emailVerified) {
+    return NextResponse.json(
+      {
+        error: "Confirm your email address before signing in.",
+        needsVerification: true,
+        email: user.email,
+      },
+      { status: 403 },
+    );
+  }
+
+  await createSession({
+    id: user.id,
+    role: user.role,
+    email: user.email,
+    sessionVersion: user.sessionVersion,
+  });
   return NextResponse.json({
     ok: true,
     role: user.role,

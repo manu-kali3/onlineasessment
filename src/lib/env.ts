@@ -30,6 +30,10 @@ const envSchema = z.object({
   NEXT_PUBLIC_APP_URL: z.string().default("http://localhost:3000"),
   ATS_WEBHOOK_SECRET: z.string().default("dev-ats-secret"),
   PROCTORING_WEBHOOK_SECRET: z.string().default("dev-proctor-secret"),
+  /** Resend API key. Without it, mail is logged to the console instead of sent. */
+  RESEND_API_KEY: z.string().optional(),
+  /** Verified sending domain, e.g. "assessment.example.com". */
+  RESEND_FROM: z.string().default("Assessment Center <no-reply@example.com>"),
 });
 
 const parsed = envSchema.safeParse(process.env);
@@ -44,6 +48,12 @@ if (!parsed.success) {
 export const env = parsed.data;
 
 export const hasDatabase = Boolean(env.DATABASE_URL);
+
+/**
+ * Outbound email is optional. In development we fall back to logging the
+ * message so password-reset links are still reachable without a paid account.
+ */
+export const canSendEmail = Boolean(env.RESEND_API_KEY);
 
 /** In production a real secret must be supplied, not the development default. */
 if (process.env.NODE_ENV === "production") {

@@ -15,7 +15,10 @@
     "db:seed": "tsx scripts/seed.ts",
     "smoke": "node scripts/smoke.cjs",
     "smoke:flow": "node scripts/smoke-flow.cjs",
-    "smoke:reset": "node scripts/reset-flow-fixture.cjs"
+    "smoke:reset": "node scripts/reset-flow-fixture.cjs",
+    "smoke:auth": "node scripts/smoke-auth.cjs",
+    "smoke:reset-password": "node scripts/smoke-reset.cjs",
+    "email:test": "node scripts/send-test-email.cjs"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.0.1",
@@ -26,6 +29,7 @@
     "next": "^16.3.8",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
+    "resend": "^6.31.0",
     "zod": "^4.1.11"
   },
   "devDependencies": {

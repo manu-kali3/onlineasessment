@@ -15,6 +15,8 @@ export type SessionPayload = {
   sub: string;
   role: User["role"];
   email: string;
+  /** Bumped on password change; a stale value invalidates the cookie. */
+  sv: number;
 };
 
 export async function hashPassword(plain: string) {
@@ -29,11 +31,13 @@ export async function createSession(user: {
   id: string;
   role: User["role"];
   email: string;
+  sessionVersion: number;
 }) {
   const token = await new SignJWT({
     sub: user.id,
     role: user.role,
     email: user.email,
+    sv: user.sessionVersion,
   } satisfies SessionPayload)
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
@@ -56,10 +60,15 @@ export async function readSession(): Promise<SessionPayload | null> {
   if (!token) return null;
   try {
     const { payload } = await jwtVerify(token, key);
+    if (typeof payload.sub !== "string" || typeof payload.sv !== "number") {
+      // A cookie signed before session versioning existed, or a malformed one.
+      return null;
+    }
     return {
-      sub: payload.sub as string,
+      sub: payload.sub,
       role: payload.role as User["role"],
       email: payload.email as string,
+      sv: payload.sv,
     };
   } catch {
     return null;
@@ -79,7 +88,13 @@ export async function getCurrentUser(): Promise<User | null> {
   if (!hasDatabase) return null;
 
   const [user] = await db.select().from(users).where(eq(users.id, session.sub));
-  return user ?? null;
+  if (!user) return null;
+
+  // A password change bumps sessionVersion, which retires every cookie issued
+  // before it. Comparing here is what makes a reset genuinely revoke access.
+  if (user.sessionVersion !== session.sv) return null;
+
+  return user;
 }
 
 export class AuthError extends Error {

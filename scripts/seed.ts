@@ -193,6 +193,8 @@ async function main() {
         passwordHash: hash,
         fullName: "Ada Admin",
         role: "admin",
+        // Staff are provisioned by an admin, so they are verified up front.
+        emailVerified: true,
       },
       {
         id: "usr-recruiter",
@@ -200,6 +202,7 @@ async function main() {
         passwordHash: hash,
         fullName: "Rowan Recruiter",
         role: "recruiter",
+        emailVerified: true,
       },
       {
         id: "usr-assessor",
@@ -207,6 +210,7 @@ async function main() {
         passwordHash: hash,
         fullName: "Sam Assessor",
         role: "assessor",
+        emailVerified: true,
       },
       {
         id: "usr-cand-1",
@@ -214,6 +218,9 @@ async function main() {
         passwordHash: hash,
         fullName: "Casey Candidate",
         role: "candidate",
+        // Seeded candidates are pre-verified so the demo accounts can sign in
+        // without going through the emailed confirmation flow.
+        emailVerified: true,
         accessibilityProfile: { textToSpeech: true, timeExtensionPct: 25 },
       },
       {
@@ -222,6 +229,7 @@ async function main() {
         passwordHash: hash,
         fullName: "Jordan Lee",
         role: "candidate",
+        emailVerified: true,
       },
       {
         id: "usr-cand-3",
@@ -229,6 +237,7 @@ async function main() {
         passwordHash: hash,
         fullName: "Priya Nair",
         role: "candidate",
+        emailVerified: true,
       },
     ])
     .onConflictDoNothing();

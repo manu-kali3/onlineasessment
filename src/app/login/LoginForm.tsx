@@ -1,6 +1,7 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 
 const demoAccounts = [
@@ -12,15 +13,21 @@ const demoAccounts = [
 
 export default function LoginForm() {
   const router = useRouter();
+  const params = useSearchParams();
+  const justReset = params.get("reset") === "1";
   const [email, setEmail] = useState("candidate@portal.test");
   const [password, setPassword] = useState("Passw0rd!");
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(
+    justReset ? "Password updated. Sign in with your new password." : null,
+  );
   const [busy, setBusy] = useState(false);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
     setError(null);
+    setNotice(null);
     try {
       const res = await fetch("/api/auth/login", {
         method: "POST",
@@ -79,6 +86,12 @@ export default function LoginForm() {
         </div>
       </div>
 
+      {notice && (
+        <p role="status" className="mt-4 tag tag-good inline-block">
+          {notice}
+        </p>
+      )}
+
       {error && (
         <p
           role="alert"
@@ -91,6 +104,21 @@ export default function LoginForm() {
       <button className="btn btn-primary mt-5 w-full" disabled={busy}>
         {busy ? "Signing in…" : "Sign in"}
       </button>
+
+      <div className="mt-4 flex items-center justify-between text-sm">
+        <Link
+          href="/forgot-password"
+          className="text-[var(--muted)] hover:text-[var(--ink)]"
+        >
+          Forgot password?
+        </Link>
+        <Link
+          href="/register"
+          className="font-semibold text-[var(--accent)]"
+        >
+          Create an account
+        </Link>
+      </div>
 
       <div className="mt-6 border-t border-[var(--line)] pt-4">
         <p className="label">Quick fill</p>
