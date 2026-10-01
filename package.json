@@ -24,7 +24,9 @@
     "smoke:login-page": "node scripts/smoke-login-page.cjs",
     "smoke:resend": "node scripts/smoke-resend.cjs",
     "smoke:diagnose": "node scripts/smoke-diagnose.cjs",
-    "email:test": "node scripts/send-test-email.cjs"
+    "email:test": "node scripts/send-test-email.cjs",
+    "email:diagnose": "node scripts/diagnose-email.cjs",
+    "email:prove": "node scripts/prove-delivery.cjs"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.0.1",

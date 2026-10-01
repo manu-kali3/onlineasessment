@@ -33,7 +33,14 @@ const envSchema = z.object({
   /** Resend API key. Without it, mail is logged to the console instead of sent. */
   RESEND_API_KEY: z.string().optional(),
   /** Verified sending domain, e.g. "assessment.example.com". */
-  RESEND_FROM: z.string().default("Assessment Center <no-reply@example.com>"),
+  /**
+   * Verified sending address. This must be on a domain you have verified in
+   * Resend. `onboarding@resend.dev` is a test-only address restricted to the
+   * account owner and will not pass SPF/DKIM for real candidates.
+   */
+  RESEND_FROM: z
+    .string()
+    .default("Assessment Center <no-reply@brevansoftwares.co.ke>"),
 });
 
 const parsed = envSchema.safeParse(process.env);

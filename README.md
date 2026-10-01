@@ -74,6 +74,8 @@ If demo accounts were ever seeded against a real database, remove them with
 | `npm run smoke:reset-password` | Reset success path, single-use tokens, session revocation |
 | `npm run smoke:reset` | Reset the fixture the flow test consumes |
 | `npm run email:test you@example.com` | Send a real email through Resend |
+| `npm run email:diagnose` | Resend domain status, recent send outcomes, live delivery probe |
+| `npm run email:prove` | Register a real address and confirm the mail was delivered |
 | `npm run smoke:login-page` | Assert the login page exposes no demo credentials |
 | `npm run smoke:resend` | Resend cooldown, token rotation, and enumeration resistance |
 | `npm run smoke:diagnose` | Registration/resend status reporting and rate limits |
@@ -202,12 +204,26 @@ provisioned by an admin are marked verified from the start, so the gate applies
 only to self-registration.
 
 **Email** goes through Resend. `RESEND_API_KEY` and `RESEND_FROM` live in
-`.env.local`. With no key configured the app still runs: messages are logged to
-the console and the affected response includes a `devVerifyUrl` / `devResetUrl`
-so the flow stays completable locally. Note that until a sending domain is
-verified in the Resend dashboard, mail can only be delivered to Resend's own
-test addresses (`delivered@resend.dev`, `onboarding@resend.dev`) — `example.com`
-is rejected outright.
+`.env.local` and **must also be set in the deployment environment**.
+
+`RESEND_FROM` has to be an address on a domain verified in the Resend dashboard
+(`no-reply@brevansoftwares.co.ke` is). Do **not** use `onboarding@resend.dev`:
+that is a test-only address restricted to the account owner, and mail from it
+will not pass SPF/DKIM for real candidates.
+
+With no `RESEND_API_KEY` the app still runs, but mail is only logged to the
+console — the response then carries a `devVerifyUrl` / `devResetUrl` and the
+login page shows an "Email not configured" banner. That fallback exists for
+local development only. A deployed instance missing the key silently discards
+every verification and reset email, which is why the missing-key case is now
+logged at `error` level and surfaced in the UI rather than swallowed.
+
+Diagnose delivery with `npm run email:diagnose` (domain status, recent
+`last_event` values, live probe) and `npm run email:prove` (registers a real
+address and polls Resend until the event is `delivered`). Note that Resend
+returning an id means *accepted*, not *delivered*; the `last_event` field is the
+real signal, and a `bounced` result usually means the recipient mailbox does not
+exist.
 
 **Emailed links resolve against the real deployment, never localhost.**
 `resolveAppUrl()` prefers an explicitly configured `NEXT_PUBLIC_APP_URL`, but

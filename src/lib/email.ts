@@ -5,9 +5,11 @@ import { env, canSendEmail } from "./env";
  * Transactional email via Resend.
  *
  * When RESEND_API_KEY is absent the message is logged instead of sent, so the
- * app remains usable locally and a missing key degrades to console output rather
- * than a hard failure. Callers get a `delivered` flag so a UI can be honest
- * about whether the message actually left the building.
+ * app remains usable locally. That fallback is only ever appropriate in
+ * development: a production instance with no key silently swallows every
+ * verification and reset email, which is exactly the kind of failure nobody
+ * notices until a candidate cannot get in. So we log loudly here and surface it
+ * on the login page via `canSendEmail`.
  */
 export type EmailResult = {
   delivered: boolean;
@@ -26,8 +28,12 @@ export async function sendEmail({
   text: string;
 }): Promise<EmailResult> {
   if (!canSendEmail) {
-    console.info(
-      `[email:dev] to=${to} subject=${JSON.stringify(subject)}\n${text}`,
+    const level = process.env.NODE_ENV === "production" ? "error" : "info";
+    console[level](
+      `[email] NOT SENT to=${to} subject=${JSON.stringify(subject)} — RESEND_API_KEY is not set, so the message was only logged.` +
+        (level === "error"
+          ? " Set RESEND_API_KEY and RESEND_FROM in the deployment environment, otherwise every verification and reset email is lost."
+          : ""),
     );
     return { delivered: false, reason: "email_not_configured" };
   }
