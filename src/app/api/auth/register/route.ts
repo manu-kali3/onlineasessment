@@ -131,7 +131,10 @@ export async function POST(req: Request) {
     expiresAt: new Date(Date.now() + TOKEN_TTL_MIN * 60_000),
   });
 
-  const verifyUrl = `${await resolveAppUrl()}/verify-email?token=${encodeURIComponent(token)}`;
+  // Must point at the API route, not /verify-email. That page only renders the
+// outcome from a `status` query param; the token is consumed by the handler
+// below, which then redirects here with status=success.
+const verifyUrl = `${await resolveAppUrl()}/api/auth/verify-email?token=${encodeURIComponent(token)}`;
 
   const result = await sendVerificationEmail({
     to: email,

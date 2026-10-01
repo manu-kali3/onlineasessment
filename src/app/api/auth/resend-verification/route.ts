@@ -160,7 +160,10 @@ export async function POST(req: Request) {
     expiresAt: new Date(Date.now() + TOKEN_TTL_MIN * 60_000),
   });
 
-  const verifyUrl = `${await resolveAppUrl()}/verify-email?token=${encodeURIComponent(token)}`;
+  // Points at the API route, which consumes the token and then redirects to the
+// /verify-email page with a status. Linking straight to the page would render
+// "pending" forever without ever verifying anything.
+const verifyUrl = `${await resolveAppUrl()}/api/auth/verify-email?token=${encodeURIComponent(token)}`;
 
   const result = await sendVerificationEmail({
     to: user.email,

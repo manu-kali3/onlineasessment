@@ -185,6 +185,7 @@ graded so far.
 | POST | `/api/auth/logout` | Clears session |
 | POST | `/api/auth/register` | Create a candidate account, email a verification link |
 | GET | `/api/auth/verify-email` | Consume a verification token, then redirect |
+| GET | `/verify-email` | Result page; also forwards a bare `token` to the API route |
 | POST | `/api/auth/resend-verification` | Re-send a verification link, rate limited |
 | POST | `/api/auth/forgot-password` | Email a reset link (never reveals whether an account exists) |
 | POST | `/api/auth/reset-password` | Consume a reset token, set a new password, revoke sessions |
@@ -322,6 +323,13 @@ Password reset (18 assertions): weak new passwords rejected, reset accepted,
 `sessionVersion` incremented, token marked consumed, a reused token rejected,
 a pre-reset session cookie no longer reaching the dashboard, the new password
 working and the old one failing.
+
+Verification link (10 assertions, `smoke:verify-link`): the emailed URL points at
+`/api/auth/verify-email` rather than the result page, following it sets
+`email_verified` and marks the token consumed, the page reports "Email
+confirmed" instead of "pending", and replaying the link is rejected. Run it
+against a server with a deliberately invalid Resend key so the API hands back the
+link it would have emailed.
 
 Diagnosis and rate limiting (15 assertions): an unregistered address reports
 `not_registered`, a fresh signup reports `registered`, an unverified address

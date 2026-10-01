@@ -25,6 +25,7 @@
     "smoke:login-page": "node scripts/smoke-login-page.cjs",
     "smoke:resend": "node scripts/smoke-resend.cjs",
     "smoke:diagnose": "node scripts/smoke-diagnose.cjs",
+    "smoke:verify-link": "node scripts/smoke-verify-link.cjs",
     "email:test": "node scripts/send-test-email.cjs",
     "email:diagnose": "node scripts/diagnose-email.cjs",
     "email:prove": "node scripts/prove-delivery.cjs"

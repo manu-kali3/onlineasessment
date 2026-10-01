@@ -20,11 +20,19 @@ const COPY: Record<string, { title: string; body: string; tone: string }> = {
 export default async function VerifyEmailPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string }>;
+  searchParams: Promise<{ status?: string; token?: string }>;
 }) {
   if (!hasDatabase) redirect("/");
 
-  const { status } = await searchParams;
+  const { status, token } = await searchParams;
+
+  // A link carrying a token but no status means it came from an email that
+  // pointed straight at this page. Consume the token here rather than sitting on
+  // "pending" forever.
+  if (!status && token) {
+    redirect(`/api/auth/verify-email?token=${encodeURIComponent(token)}`);
+  }
+
   const copy = COPY[status ?? ""] ?? {
     title: "Check your email",
     body: "Open the verification link we sent you to confirm your address. The link expires in 60 minutes.",
