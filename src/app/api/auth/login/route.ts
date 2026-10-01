@@ -4,6 +4,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { users } from "@/db/schema";
 import { verifyPassword, createSession } from "@/lib/auth";
+import { hasDatabase } from "@/lib/env";
 
 const bodySchema = z.object({
   email: z.string().email(),
@@ -11,6 +12,13 @@ const bodySchema = z.object({
 });
 
 export async function POST(req: Request) {
+  if (!hasDatabase) {
+    return NextResponse.json(
+      { error: "Sign-in is unavailable: the database is not configured." },
+      { status: 503 },
+    );
+  }
+
   const parsed = bodySchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });

@@ -17,7 +17,9 @@ html,
 body {
   background: var(--bg);
   color: var(--ink);
-  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+  /* System stack: no webfont fetch, so builds never depend on the network. */
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
 }
 
 /* High-contrast / accessibility toggle is applied by the accessibility provider */

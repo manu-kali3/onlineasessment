@@ -56,7 +56,22 @@ export default function TestRunner({
     "idle",
   );
 
+  const current = questions[index];
   const questionStartedAt = useRef(Date.now());
+
+  // Autosave reads the latest answers through a ref. If it depended on state
+  // directly, the interval would be torn down and recreated on every keystroke
+  // and would effectively never fire while the candidate is typing.
+  const answersRef = useRef(answers);
+  useEffect(() => {
+    answersRef.current = answers;
+  }, [answers]);
+
+  const currentRef = useRef(current);
+  useEffect(() => {
+    currentRef.current = current;
+  }, [current]);
+
   const totalMs = durationMin * 60_000 * (1 + timeExtensionPct / 100);
   const deadline = startedAtMs + totalMs;
 
@@ -66,13 +81,12 @@ export default function TestRunner({
 
   /* -------- server-authoritative countdown -------- */
   useEffect(() => {
-    const tick = () => setRemaining(Math.max(0, Math.floor((deadline - Date.now()) / 1000)));
+    const tick = () =>
+      setRemaining(Math.max(0, Math.floor((deadline - Date.now()) / 1000)));
     tick();
     const timer = setInterval(tick, 1000);
     return () => clearInterval(timer);
   }, [deadline]);
-
-  const current = questions[index];
 
   /* -------- autosave: on navigation + every 15s -------- */
   const save = useCallback(
@@ -92,12 +106,15 @@ export default function TestRunner({
     [attemptId],
   );
 
+  // Stable identity: reads live answers/current via refs so the 15s interval is
+  // created once instead of on every keystroke.
   const persistCurrent = useCallback(async () => {
-    if (!current) return;
+    const q = currentRef.current;
+    if (!q) return;
     const spent = Date.now() - questionStartedAt.current;
     questionStartedAt.current = Date.now();
-    await save(current.id, answers[current.id] ?? null, spent);
-  }, [answers, current, save]);
+    await save(q.id, answersRef.current[q.id] ?? null, spent);
+  }, [save]);
 
   useEffect(() => {
     const timer = setInterval(() => void persistCurrent(), 15_000);
@@ -110,12 +127,11 @@ export default function TestRunner({
 
   async function goTo(next: number) {
     await persistCurrent();
-    questionStartedAt.current = Date.now();
     setIndex(Math.max(0, Math.min(next, questions.length - 1)));
     window.scrollTo({ top: 0 });
   }
 
-  async function submit(auto = false) {
+  async function submit() {
     setSubmitting(true);
     await persistCurrent();
     try {
@@ -124,18 +140,25 @@ export default function TestRunner({
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ attemptId }),
       });
-      if (res.ok) router.push(`/candidate/results/${attemptId}`);
-      else setSubmitting(false);
+      if (res.ok) {
+        router.push(`/candidate/results/${attemptId}`);
+        return;
+      }
     } catch {
-      setSubmitting(false);
+      // fall through to the error state below
     }
-    if (auto) router.push(`/candidate/results/${attemptId}`);
+    setSubmitting(false);
   }
 
-  // Auto-submit the moment the clock hits zero
+  // Auto-submit the moment the clock hits zero. Guarded on a ref so a re-render
+  // cannot fire a second submit request.
+  const submitted = useRef(false);
   useEffect(() => {
-    if (remaining === 0 && !submitting) void submit(true);
-  }, [remaining, submitting]);
+    if (remaining === 0 && !submitted.current) {
+      submitted.current = true;
+      void submit();
+    }
+  }, [remaining]);
 
   const answeredCount = questions.filter((q) => {
     const a = answers[q.id];

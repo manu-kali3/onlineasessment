@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useCallback, useState } from "react";
+import { useState } from "react";
 import SystemCheck, { type HardwareResult } from "./SystemCheck";
 
 export default function StartGate({
@@ -21,40 +21,38 @@ export default function StartGate({
   const [starting, setStarting] = useState(false);
   const [consented, setConsented] = useState(!requiresProctoring);
   const [error, setError] = useState<string | null>(null);
+  const [hardware, setHardware] = useState<HardwareResult | null>(null);
 
-  const durationMin = Math.round(
-    baseDurationMin * (1 + extensionPct / 100),
-  );
+  const durationMin = Math.round(baseDurationMin * (1 + extensionPct / 100));
+  const canStart =
+    hardware !== null && (!requiresProctoring || consented) && !starting;
 
-  const begin = useCallback(
-    async (hardware: HardwareResult) => {
-      if (requiresProctoring && !consented) return;
-      setStarting(true);
-      setError(null);
-      try {
-        const res = await fetch("/api/attempts/start", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ invitationId, hardwareCheck: hardware }),
-        });
-        const data = await res.json();
-        if (!res.ok) {
-          setError(data.error ?? "Could not start the assessment");
-          setStarting(false);
-          return;
-        }
-        router.push(`/candidate/test/${data.attemptId}`);
-      } catch {
-        setError("Network error. Please try again.");
+  async function begin() {
+    if (!hardware || !canStart) return;
+    setStarting(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/attempts/start", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ invitationId, hardwareCheck: hardware }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error ?? "Could not start the assessment");
         setStarting(false);
+        return;
       }
-    },
-    [consented, invitationId, requiresProctoring, router],
-  );
+      router.push(`/candidate/test/${data.attemptId}`);
+    } catch {
+      setError("Network error. Please try again.");
+      setStarting(false);
+    }
+  }
 
   return (
     <div className="space-y-4">
-      <SystemCheck onPass={begin} extensionPct={extensionPct} />
+      <SystemCheck onResult={setHardware} extensionPct={extensionPct} />
 
       {requiresProctoring && (
         <div className="panel p-5">
@@ -85,17 +83,37 @@ export default function StartGate({
 
       {resume && (
         <div className="panel p-5 text-sm text-[var(--muted)]">
-          This attempt is already in progress. The system check runs again, then
-          you return to where you left off.
+          This attempt is already in progress. Running the system check returns you
+          to where you left off; the timer does not reset.
         </div>
       )}
 
-      <p className="text-xs text-[var(--muted)]">
-        Timer: {durationMin} minutes
-        {extensionPct > 0 && ` (${baseDurationMin} min plus ${extensionPct}% extension)`}.
-        Starting freezes the clock and enables integrity monitoring.
-        {starting && " Launching…"}
-      </p>
+      <div className="panel p-5">
+        <p className="text-sm text-[var(--muted)]">
+          Timer: <strong>{durationMin} minutes</strong>
+          {extensionPct > 0 &&
+            ` (${baseDurationMin} min plus a ${extensionPct}% approved extension)`}
+          . Pressing start freezes the clock and enables integrity monitoring.
+        </p>
+        <button
+          className="btn btn-primary mt-4"
+          disabled={!canStart}
+          onClick={() => void begin()}
+        >
+          {starting
+            ? "Launching…"
+            : hardware === null
+              ? "Run the system check first"
+              : resume
+                ? "Resume assessment"
+                : "Start assessment"}
+        </button>
+        {hardware === null && (
+          <p className="mt-2 text-xs text-[var(--muted)]">
+            The check must pass before the assessment can begin.
+          </p>
+        )}
+      </div>
     </div>
   );
 }

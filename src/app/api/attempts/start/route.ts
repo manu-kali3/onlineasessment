@@ -99,6 +99,12 @@ export async function POST(req: Request) {
     .select()
     .from(assessments)
     .where(eq(assessments.id, invitation.assessmentId));
+  if (!assessment) {
+    return NextResponse.json(
+      { error: "Assessment not found" },
+      { status: 404 },
+    );
+  }
 
   return NextResponse.json({
     ok: true,

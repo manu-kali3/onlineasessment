@@ -17,6 +17,7 @@ import {
   computeOverallScore,
   computePercentile,
   gradeObjective,
+  pendingReviewCount,
 } from "@/lib/scoring";
 
 const bodySchema = z.object({
@@ -55,6 +56,9 @@ export async function POST(req: Request) {
     .select()
     .from(assessments)
     .where(eq(assessments.id, attempt.assessmentId));
+  if (!assessment) {
+    return NextResponse.json({ error: "Assessment not found" }, { status: 404 });
+  }
 
   const links = await db
     .select({
@@ -132,6 +136,11 @@ export async function POST(req: Request) {
     })),
   );
 
+  // How many items the aggregate above does *not* yet cover.
+  const stillPending = pendingReviewCount(
+    finalResponses.map((r) => ({ awardedScore: r.awardedScore })),
+  );
+
   const allCompetencies = await db.select({ id: competencies.id }).from(competencies);
   const compScores = computeCompetencyScores(
     finalResponses.map((r) => ({
@@ -157,7 +166,13 @@ export async function POST(req: Request) {
 
   const percentile = computePercentile(overall, [...peerScores, overall]);
 
-  const passed = assessment.passMark !== null ? overall >= assessment.passMark : null;
+  // A pass/fail verdict on a partial score would be misleading: unreviewed items
+  // are excluded from the average, so the number can still move. Leave the
+  // decision open until every item has been graded.
+  const passed =
+    stillPending > 0 || assessment.passMark === null
+      ? null
+      : overall >= assessment.passMark;
 
   await db
     .update(attempts)
@@ -171,10 +186,12 @@ export async function POST(req: Request) {
     })
     .where(eq(attempts.id, attempt.id));
 
+  // Scope to this attempt's own invitation. Matching on assessmentId alone
+  // would mark every other candidate's invitation as submitted.
   await db
     .update(assessmentInvitations)
     .set({ status: "submitted" })
-    .where(eq(assessmentInvitations.assessmentId, attempt.assessmentId));
+    .where(eq(assessmentInvitations.id, attempt.invitationId ?? ""));
 
   return NextResponse.json({
     ok: true,
@@ -182,7 +199,8 @@ export async function POST(req: Request) {
     percentile,
     passed,
     pendingHumanReview,
-    results: Object.keys(compScores).length ? compScores : undefined,
+    itemsPendingReview: stillPending,
+    competencyScores: Object.keys(compScores).length ? compScores : undefined,
   });
 }
 

@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { and, eq } from "drizzle-orm";
@@ -42,13 +44,16 @@ export default async function ResultPage({
         </h1>
         <p className="mt-1 text-sm text-[var(--muted)]">
           {attempt.status === "graded"
-            ? "Auto-graded and complete."
-            : "Submitted. Objective items are scored; written and video responses are pending assessor review."}
+            ? "Auto-graded and complete. Every item has been scored."
+            : "Submitted. The score below covers the auto-graded items only — written and video responses are awaiting assessor review, and the final score and outcome follow."}
         </p>
 
         <section className="mt-6 grid gap-4 sm:grid-cols-3">
           <div className="panel p-5">
-            <div className="text-sm font-semibold text-[var(--muted)]">Overall score</div>
+            <div className="text-sm font-semibold text-[var(--muted)]">
+              Overall score
+              {attempt.status === "submitted" && " (provisional)"}
+            </div>
             <div className="mt-1 text-4xl font-bold tabular-nums">
               {attempt.score !== null ? `${attempt.score}%` : "—"}
             </div>
@@ -66,7 +71,7 @@ export default async function ResultPage({
             <div className="text-sm font-semibold text-[var(--muted)]">Outcome</div>
             <div className="mt-2">
               {attempt.passed === null ? (
-                <span className="tag">No pass mark set</span>
+                <span className="tag">Pending assessor review</span>
               ) : attempt.passed ? (
                 <span className="tag tag-good">Passed</span>
               ) : (

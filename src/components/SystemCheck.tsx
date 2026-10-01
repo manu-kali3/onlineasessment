@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 export type HardwareResult = {
   camera: boolean;
@@ -14,12 +14,10 @@ export type HardwareResult = {
  * small timed fetch measures effective download speed against a hard threshold.
  */
 export default function SystemCheck({
-  onPass,
-  disabled = false,
+  onResult,
   extensionPct = 0,
 }: {
-  onPass: (result: HardwareResult) => void;
-  disabled?: boolean;
+  onResult: (result: HardwareResult) => void;
   extensionPct?: number;
 }) {
   const [camera, setCamera] = useState<boolean | null>(null);
@@ -28,6 +26,7 @@ export default function SystemCheck({
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [complete, setComplete] = useState(false);
+  const reported = useRef(false);
 
   async function run() {
     setRunning(true);
@@ -68,11 +67,20 @@ export default function SystemCheck({
 
   const passed = Boolean(camera && mic && (mbps ?? 0) >= 5);
 
+  // Report the result once per successful run. The ref guard means a re-render
+  // — or a changed callback identity — cannot trigger a second start request.
   useEffect(() => {
-    if (complete && passed && !disabled) {
-      onPass({ camera: !!camera, microphone: !!mic, downloadMbps: mbps ?? 0, passed });
+    if (complete && passed && !reported.current) {
+      reported.current = true;
+      onResult({
+        camera: !!camera,
+        microphone: !!mic,
+        downloadMbps: mbps ?? 0,
+        passed: true,
+      });
     }
-  }, [complete, passed, camera, mic, mbps, disabled, onPass]);
+    if (!passed) reported.current = false;
+  }, [complete, passed, camera, mic, mbps, onResult]);
 
   const verdict = (ok: boolean | null, label: string) =>
     ok === null ? (
@@ -115,8 +123,12 @@ export default function SystemCheck({
         </p>
       )}
 
-      <button className="btn btn-primary mt-4" onClick={run} disabled={running}>
-        {running ? "Checking…" : complete ? "Run again" : "Run system check"}
+      <button
+        className="btn btn-ghost mt-4"
+        onClick={run}
+        disabled={running || passed}
+      >
+        {running ? "Checking…" : passed ? "Check passed" : complete ? "Run again" : "Run system check"}
       </button>
 
       {extensionPct > 0 && (

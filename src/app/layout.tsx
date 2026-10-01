@@ -1,9 +1,12 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
 import "./globals.css";
 
-const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
-
+/**
+ * No `next/font/google` here on purpose: it downloads the font binary during
+ * `next build`, which fails the whole build when the build machine has no
+ * outbound network access. A system font stack renders instantly and keeps
+ * CI and offline builds deterministic.
+ */
 export const metadata: Metadata = {
   title: "Assessment Center",
   description:
@@ -15,7 +18,7 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
-      <body className={`${inter.variable} antialiased`}>{children}</body>
+      <body className="antialiased">{children}</body>
     </html>
   );
 }

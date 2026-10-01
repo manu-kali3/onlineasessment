@@ -65,18 +65,36 @@ export function gradeObjective(
   return { isCorrect: null, awardedScore: null, needsHumanReview: true };
 }
 
-/** Aggregate weighted responses into a 0-100 percentage. */
+/**
+ * Aggregate weighted responses into a 0-100 percentage.
+ *
+ * Items with a null `awardedScore` are still awaiting human review, so they are
+ * excluded from BOTH sides of the ratio. Including them in the denominator while
+ * adding nothing to the numerator would report a provisional score as if the
+ * candidate had failed every unreviewed item. The returned score therefore
+ * covers graded items only, and is explicitly provisional until review lands.
+ */
 export function computeOverallScore(
   items: { awardedScore: number | null; weight: number }[],
 ): number {
   let earned = 0;
   let possible = 0;
+  let gradedCount = 0;
   for (const item of items) {
+    if (item.awardedScore === null) continue;
+    gradedCount++;
     possible += item.weight * 100;
-    earned += item.weight * (item.awardedScore ?? 0);
+    earned += item.weight * item.awardedScore;
   }
   if (possible === 0) return 0;
   return round2((earned / possible) * 100);
+}
+
+/** How many items still need a human decision. */
+export function pendingReviewCount(
+  items: { awardedScore: number | null }[],
+): number {
+  return items.filter((i) => i.awardedScore === null).length;
 }
 
 export function computeCompetencyScores(
@@ -88,11 +106,13 @@ export function computeCompetencyScores(
     buckets.set(c.id, { earned: 0, possible: 0 });
   }
   for (const item of items) {
-    if (!item.competencyId) continue;
+    // Same rule as computeOverallScore: unreviewed items are excluded, so a
+    // competency is only reported once at least one of its items is graded.
+    if (!item.competencyId || item.awardedScore === null) continue;
     const b = buckets.get(item.competencyId);
     if (!b) continue;
     b.possible += item.weight * 100;
-    b.earned += item.weight * (item.awardedScore ?? 0);
+    b.earned += item.weight * item.awardedScore;
   }
   const out: Record<string, number> = {};
   for (const [id, b] of buckets) {

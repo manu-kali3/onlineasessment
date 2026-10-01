@@ -1,5 +1,5 @@
-import "server-only";
 import bcrypt from "bcryptjs";
+import { env } from "./env";
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 import { eq } from "drizzle-orm";
