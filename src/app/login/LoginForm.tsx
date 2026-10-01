@@ -21,11 +21,13 @@ export default function LoginForm() {
   const [unverifiedEmail, setUnverifiedEmail] = useState<string | null>(null);
   const [resending, setResending] = useState(false);
   const [resendNote, setResendNote] = useState<string | null>(null);
+  const [resendStatus, setResendStatus] = useState<string | null>(null);
 
   async function resendVerification() {
     if (!unverifiedEmail || resending) return;
     setResending(true);
     setResendNote(null);
+    setResendStatus(null);
     try {
       const res = await fetch("/api/auth/resend-verification", {
         method: "POST",
@@ -38,6 +40,7 @@ export default function LoginForm() {
         return;
       }
       setResendNote(data.message);
+      setResendStatus(data.status ?? null);
     } catch {
       setResendNote("Network error. Please try again.");
     } finally {
@@ -143,7 +146,12 @@ export default function LoginForm() {
             {resending ? "Sending…" : "Resend verification link"}
           </button>
           {resendNote && (
-            <p role="status" className="mt-2 text-xs text-[var(--muted)]">
+            <p
+              role="status"
+              className={`mt-2 text-xs ${
+                resendStatus === "sent" ? "text-[var(--good)]" : "text-[var(--muted)]"
+              }`}
+            >
               {resendNote}
             </p>
           )}

@@ -11,6 +11,9 @@ const sql = neon(process.env.DATABASE_URL);
 
 // Resend only accepts its own test address until a sending domain is verified.
 const TEST_INBOX = "delivered@resend.dev";
+// Register is rate limited per IP; use a distinct one so this run is not
+// affected by earlier suites sharing the loopback address.
+const TEST_IP = "198.51.100.42";
 const OLD_PASSWORD = "correct horse battery 42";
 const NEW_PASSWORD = "a different long passphrase 99";
 
@@ -18,12 +21,15 @@ function rows(res) {
   return res.rows ?? res;
 }
 
-async function call(method, path, body, cookie) {
+async function call(method, path, body, cookie, ip) {
   const res = await fetch(`${BASE}${path}`, {
     method,
     headers: {
       ...(body ? { "content-type": "application/json" } : {}),
       ...(cookie ? { cookie } : {}),
+      // Register is per-IP rate limited, so isolate this run from any other
+      // tests sharing the loopback address.
+      ...(ip ? { "x-forwarded-for": ip } : {}),
     },
     ...(body ? { body: JSON.stringify(body) } : {}),
     redirect: "manual",
@@ -52,30 +58,39 @@ async function main() {
   await sql.query("delete from users where email = $1", [email]);
 
   console.log("=== password policy ===");
-  const weak = await call("POST", "/api/auth/register", {
-    fullName: "QA Tester",
-    email,
-    password: "short1!A",
-  });
+  const weak = await call(
+    "POST",
+    "/api/auth/register",
+    { fullName: "QA Tester", email, password: "short1!A" },
+    null,
+    TEST_IP,
+  );
   pass("weak password rejected", weak.status, 400);
 
   console.log("\n=== registration ===");
-  const reg = await call("POST", "/api/auth/register", {
-    fullName: "QA Tester",
-    email,
-    password: OLD_PASSWORD,
-  });
+  const reg = await call(
+    "POST",
+    "/api/auth/register",
+    { fullName: "QA Tester", email, password: OLD_PASSWORD },
+    null,
+    TEST_IP,
+  );
   pass("register accepted", reg.status, 200);
   pass("requires verification", reg.data?.requiresVerification, true);
   pass("no dev link (email actually sent)", reg.data?.devVerifyUrl, undefined);
 
-  const dup = await call("POST", "/api/auth/register", {
-    fullName: "QA Tester",
-    email,
-    password: OLD_PASSWORD,
-  });
+  const dup = await call(
+    "POST",
+    "/api/auth/register",
+    { fullName: "QA Tester", email, password: OLD_PASSWORD },
+    null,
+    TEST_IP,
+  );
   pass("duplicate returns same status", dup.status, reg.status);
-  pass("duplicate returns identical message", dup.data?.message, reg.data?.message);
+  // Registration now discloses that the address is taken, and points at the
+  // resend flow rather than silently returning the signup response.
+  pass("duplicate is diagnosed", dup.data?.status, "awaiting_verification");
+  pass("no account created a second time", dup.data?.requiresVerification, true);
 
   const role = await sql.query("select role, email_verified from users where email = $1", [email]);
   pass("role forced to candidate", rows(role)[0].role, "candidate");

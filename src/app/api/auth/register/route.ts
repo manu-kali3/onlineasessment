@@ -8,6 +8,7 @@ import { databaseUnavailable } from "@/lib/api-guard";
 import { checkPassword } from "@/lib/password";
 import { sendVerificationEmail } from "@/lib/email";
 import { resolveAppUrl } from "@/lib/app-url";
+import { clientIp, rateLimit } from "@/lib/rate-limit";
 import { generateToken, hashToken, TOKEN_TTL_MIN } from "@/lib/tokens";
 import { newId } from "@/lib/id";
 
@@ -20,19 +21,32 @@ const bodySchema = z.object({
 });
 
 /**
- * Identical for a new account and an existing one. Any difference here would
- * turn this endpoint into a way to confirm which addresses are registered.
+ * Registration reports whether the address was already taken.
+ *
+ * This is a deliberate enumeration trade-off: it gives a candidate a clear "you
+ * already have an account, sign in instead" instead of a dead end. The
+ * consequence is that anyone who can reach this endpoint can test whether an
+ * address is registered here, which is useful for targeted phishing. See the
+ * warning at the top of src/lib/rate-limit.ts — `rateLimit` is per-instance, so
+ * it is a speed bump rather than a real boundary.
  */
-const ACCEPTED = {
-  ok: true,
-  requiresVerification: true,
-  message:
-    "If that address can be registered, we have sent a verification link to it. The link expires in 60 minutes.",
-};
-
 export async function POST(req: Request) {
   const unavailable = databaseUnavailable();
   if (unavailable) return unavailable;
+
+  const ipLimit = rateLimit(`register:ip:${clientIp(req)}`, 10, 10 * 60_000);
+  if (!ipLimit.ok) {
+    return NextResponse.json(
+      {
+        error: "Too many requests. Please try again shortly.",
+        retryAfterSec: ipLimit.retryAfterSec,
+      },
+      {
+        status: 429,
+        headers: { "retry-after": String(ipLimit.retryAfterSec) },
+      },
+    );
+  }
 
   const raw = await req.text();
   if (raw.length > MAX_BODY_BYTES) {
@@ -65,17 +79,23 @@ export async function POST(req: Request) {
   }
 
   const [existing] = await db
-    .select({ id: users.id })
+    .select({ id: users.id, emailVerified: users.emailVerified })
     .from(users)
     .where(eq(users.email, email));
 
   // Self-registration creates candidates only. Staff accounts are provisioned by
   // an admin so that nobody can grant themselves recruiter access by signing up.
   if (existing) {
-    // Same response as a fresh signup. A real duplicate should also re-send the
-    // verification email, but that would turn this into a mail-relay; the user
-    // can use the reset flow instead.
-    return NextResponse.json(ACCEPTED);
+    // Say what is actually true. Keeping this generic while /resend-verification
+    // discloses would be pointless — an attacker would simply call that one.
+    return NextResponse.json({
+      ok: true,
+      status: existing.emailVerified ? "already_registered" : "awaiting_verification",
+      requiresVerification: !existing.emailVerified,
+      message: existing.emailVerified
+        ? "That address already has a confirmed account. Sign in instead, or reset your password if you have forgotten it."
+        : "That address is registered but not confirmed yet. We have not sent another link here — use “Resend verification link” on the sign-in page.",
+    });
   }
 
   const userId = newId();
@@ -120,7 +140,11 @@ export async function POST(req: Request) {
   });
 
   return NextResponse.json({
-    ...ACCEPTED,
+    ok: true,
+    status: result.delivered ? "registered" : "registered_unconfirmed",
+    requiresVerification: true,
+    message:
+      "Account created. Check your inbox for a verification link before signing in. The link expires in 60 minutes and can only be used once.",
     // Surfaced only when email could not be sent, so a developer running locally
     // can still complete the flow.
     devVerifyUrl: result.delivered ? undefined : verifyUrl,

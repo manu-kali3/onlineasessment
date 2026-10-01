@@ -76,6 +76,7 @@ If demo accounts were ever seeded against a real database, remove them with
 | `npm run email:test you@example.com` | Send a real email through Resend |
 | `npm run smoke:login-page` | Assert the login page exposes no demo credentials |
 | `npm run smoke:resend` | Resend cooldown, token rotation, and enumeration resistance |
+| `npm run smoke:diagnose` | Registration/resend status reporting and rate limits |
 
 The smoke scripts expect a server on `$BASE` (default `http://localhost:3120`),
 and several sign in as the seeded demo accounts, so run `SEED_DEMO=1 npm run
@@ -233,18 +234,28 @@ scored as feedback rather than enforced, following NIST's preference for length
 over composition rules. Both the server and the reset form compute the same
 strength score so the meter cannot disagree with what is accepted.
 
-Neither `/register` nor `/forgot-password` reveals whether an address is
-registered: both return an identical 200 for known and unknown addresses, and a
-failed verification or reset returns one generic message that cannot be used to
-probe which tokens were ever valid.
+`/register` and `/resend-verification` **report whether an address is
+registered**, returning a `status` of `registered`, `already_registered`,
+`awaiting_verification`, `already_verified`, `not_registered`, or `rate_limited`.
+This is a deliberate product decision — it turns "I registered but nothing
+happened" into a specific, actionable answer — but it does mean anyone who can
+reach those endpoints can test whether a given address holds an account here,
+which is useful for targeted phishing or credential stuffing. `/forgot-password`
+deliberately still returns a generic response, since a reset has no equivalent
+"already exists" case worth exposing.
 
-**Resending a verification link** is offered in two places: on the register
-confirmation screen, and on the sign-in page for an account that exists but is
-still unverified. Because it is unauthenticated, it carries a 60-second cooldown
-per address — a second request inside that window is a silent no-op returning the
-same response, so the endpoint cannot be used to mail-bomb someone. Issuing a new
-link supersedes every outstanding verification token, so only the most recent
-email works and an intercepted older link is useless.
+**Rate limiting** is the only thing bounding that exposure:
+
+- per IP: 10 registrations and 20 resends per 10 minutes, returning 429 with a
+  `Retry-After` header
+- per address: 3 resends per 10 minutes, plus a 60-second mail cooldown so a
+  link cannot be re-sent faster than that
+
+Issuing a new link supersedes every outstanding verification token, so only the
+most recent email works and an intercepted older link is useless. The resend
+button appears in the two places a candidate gets stuck: the register
+confirmation screen, and the sign-in page for an account that exists but is
+still unverified.
 
 ## Security notes
 
@@ -279,10 +290,12 @@ Password reset (18 assertions): weak new passwords rejected, reset accepted,
 a pre-reset session cookie no longer reaching the dashboard, the new password
 working and the old one failing.
 
-Verification resend (15 assertions): an immediate resend after registration is a
-no-op, a resend past the cooldown rotates the token and consumes the previous
-one, a second resend is silently suppressed, and unknown or already-verified
-addresses return the identical response.
+Diagnosis and rate limiting (15 assertions): an unregistered address reports
+`not_registered`, a fresh signup reports `registered`, an unverified address
+reports `sent` and rotates its token, a repeat within the cooldown reports
+`rate_limited` without issuing a second token, a duplicate signup reports
+`awaiting_verification`, a confirmed address reports `already_verified`, and
+exceeding the per-IP budget returns 429.
 
 Real email delivery was confirmed through the Resend API (`email:test`).
 
@@ -311,17 +324,19 @@ database with the seeded data, the smoke scripts confirm:
 
 ### Known gaps in the auth work
 
-- **No rate limiting.** The register, forgot-password, and reset endpoints are
-  unauthenticated and unbounded, so they can be used for credential stuffing or
-  to mail-bomb an address. The resend-verification endpoint has a 60-second
-  per-address cooldown, but that is a single guard rather than a real limiter.
-  All of these need per-IP and per-account limits, ideally durable across
-  instances rather than in-process.
+- **Rate limiting is in-process and therefore not a security boundary.** See the
+  warning at the top of `src/lib/rate-limit.ts`: counters live in module memory,
+  so on Vercel each instance keeps its own and the effective limit scales with
+  instance count. An attacker can also spread requests across cold starts. For
+  real protection this needs a shared store — Redis or a Postgres table keyed by
+  IP plus action. The call sites need no changes to swap it.
+- **`/forgot-password` has no rate limit at all.** It stays generic about
+  existence, but it will happily send mail repeatedly for a known address.
 - **Unverified accounts are only gated at login.** A self-registered but
   unverified user still occupies a row and can trigger verification emails.
-- **Duplicate registration does not resend.** It returns the generic response
-  without mailing again, which avoids turning the endpoint into a mail relay but
-  leaves a user who lost the first email to use the reset flow instead.
+- **Duplicate registration does not resend.** It reports the address is already
+  registered and points at the resend flow, rather than mailing again from that
+  endpoint.
 
 ## Not built yet
 

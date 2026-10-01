@@ -12,9 +12,11 @@ export default function RegisterPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<string[]>([]);
-  const [done, setDone] = useState<{ message: string; devUrl?: string } | null>(
-    null,
-  );
+  const [done, setDone] = useState<{
+    message: string;
+    status?: string;
+    devUrl?: string;
+  } | null>(null);
   const [resending, setResending] = useState(false);
   const [resendNote, setResendNote] = useState<string | null>(null);
 
@@ -58,7 +60,11 @@ export default function RegisterPage() {
         setBusy(false);
         return;
       }
-      setDone({ message: data.message, devUrl: data.devVerifyUrl });
+      setDone({
+        message: data.message,
+        status: data.status,
+        devUrl: data.devVerifyUrl,
+      });
       setBusy(false);
     } catch {
       setError("Network error. Please try again.");
@@ -67,12 +73,30 @@ export default function RegisterPage() {
   }
 
   if (done) {
+    // Distinct outcomes, so the candidate gets a specific next step rather than
+    // a generic "check your inbox".
+    const banner =
+      done.status === "already_registered"
+        ? { tone: "tag-warn", label: "Already registered" }
+        : done.status === "awaiting_verification"
+          ? { tone: "tag-warn", label: "Confirm your email" }
+          : done.status === "registered_unconfirmed"
+            ? { tone: "tag-warn", label: "Email not sent" }
+            : { tone: "tag-good", label: "Almost there" };
+
+    const showResend =
+      done.status === "registered" ||
+      done.status === "awaiting_verification" ||
+      done.status === "registered_unconfirmed";
+
     return (
       <main className="flex min-h-dvh items-center justify-center px-6 py-12">
         <div className="panel w-full max-w-md p-6">
-          <span className="tag tag-good">Almost there</span>
+          <span className={`tag ${banner.tone}`}>{banner.label}</span>
           <h1 className="mt-4 text-xl font-bold tracking-tight">
-            Check your email
+            {done.status === "already_registered"
+              ? "You already have an account"
+              : "Check your email"}
           </h1>
           <p className="mt-2 text-sm text-[var(--muted)]">{done.message}</p>
 
@@ -94,18 +118,22 @@ export default function RegisterPage() {
             </div>
           )}
 
-          <button
-            type="button"
-            className="btn btn-ghost mt-3 w-full"
-            onClick={() => void resendVerification()}
-            disabled={resending}
-          >
-            {resending ? "Sending…" : "Resend verification link"}
-          </button>
-          {resendNote && (
-            <p role="status" className="mt-2 text-xs text-[var(--muted)]">
-              {resendNote}
-            </p>
+          {showResend && (
+            <>
+              <button
+                type="button"
+                className="btn btn-ghost mt-3 w-full"
+                onClick={() => void resendVerification()}
+                disabled={resending}
+              >
+                {resending ? "Sending…" : "Resend verification link"}
+              </button>
+              {resendNote && (
+                <p role="status" className="mt-2 text-xs text-[var(--muted)]">
+                  {resendNote}
+                </p>
+              )}
+            </>
           )}
 
           <Link href="/login" className="btn btn-primary mt-5 w-full">
