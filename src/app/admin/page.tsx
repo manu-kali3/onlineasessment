@@ -4,6 +4,7 @@ import { TopBar } from "@/components/TopBar";
 import { loadRecruiterDashboard } from "@/lib/queries";
 import StatCard from "@/components/StatCard";
 import RiskQueue from "@/components/RiskQueue";
+import { TableWrap } from "@/components/TableWrap";
 
 export const dynamic = "force-dynamic";
 
@@ -39,8 +40,10 @@ export default async function AdminPage() {
         <div className="mt-6 grid gap-4 lg:grid-cols-5">
           <section className="panel p-5 lg:col-span-3">
             <h2 className="text-base font-semibold">Assessment performance</h2>
-            <table className="table mt-3">
-              <thead>
+            <TableWrap className="mt-3">
+
+                <table className="table">
+                  <thead>
                 <tr>
                   <th>Assessment</th>
                   <th>Completed</th>
@@ -76,6 +79,8 @@ export default async function AdminPage() {
                 )}
               </tbody>
             </table>
+
+            </TableWrap>
           </section>
           <section className="panel p-5 lg:col-span-2">
             <h2 className="text-base font-semibold">Integrity risk queue</h2>
@@ -88,8 +93,10 @@ export default async function AdminPage() {
         </div>
         <section className="panel mt-4 p-5">
           <h2 className="text-base font-semibold">Recent attempts</h2>
-          <table className="table mt-3">
-            <thead>
+          <TableWrap className="mt-3">
+
+              <table className="table">
+                <thead>
               <tr>
                 <th>Candidate</th>
                 <th>Assessment</th>
@@ -137,6 +144,8 @@ export default async function AdminPage() {
               )}
             </tbody>
           </table>
+
+          </TableWrap>
         </section>
       </div>
     </main>

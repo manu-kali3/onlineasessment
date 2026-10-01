@@ -100,6 +100,8 @@ If demo accounts were ever seeded against a real database, remove them with
 | `npm run db:studio` | Browse data in Drizzle Studio |
 | `npm run db:seed` | Idempotent content seed (competencies, questions, assessments) |
 | `npm run db:seed:webdev` | Add the Web Development Fundamentals pack and invite every candidate |
+| `npm run db:seed:ai` | Add the AI Fundamentals quiz (auto-graded) and invite every candidate |
+| `npm run db:seed:design` | Add the Graphic Design Fundamentals pack and invite every candidate |
 | `npm run db:create-admin` | Create a real admin from `ADMIN_EMAIL` / `ADMIN_PASSWORD` |
 | `npm run db:revoke-demo` | Delete the seeded demo accounts and their attempts |
 | `npm run smoke` | Auth, role separation, and blind-review checks against a running server |
@@ -344,6 +346,37 @@ a submitted attempt stays `submitted` until an assessor scores it. That is the
 known grading-UI gap, not a defect in the content. New candidates created after
 the seed have to be invited separately, or re-run the seed.
 
+## Content packs
+
+Three question packs ship as separate, idempotent seed scripts. Each invites
+every candidate account on every run, deriving invitation ids from a hash of the
+user id so re-running cannot duplicate.
+
+| Script | Assessment | Items | Grading |
+| --- | --- | --- | --- |
+| `db:seed:ai` | AI Fundamentals | 5 multiple-choice | **Fully auto-graded** — a score appears on submit |
+| `db:seed:webdev` | Web Development Fundamentals | 1 coding, 8 written | Written items need an assessor |
+| `db:seed:design` | Graphic Design Fundamentals | 1 coding, 5 written | Written items need an assessor |
+
+Two supplied items asked for interactive demos — a box-model viewer and an
+additive-vs-subtractive colour mixer. Both are implemented as **coding** items
+(`totalWidth(box)` and `rgbToCmyk(r, g, b)`) with test cases rather than as
+static prose, because the runner already renders a code editor and a coding item
+can then be graded automatically. A live slider widget would need a new question
+type plus a sandboxed runtime, which is not built.
+
+The colour-conversion test cases are verified against a reference implementation
+by `verify-graphic-design.cjs`, so no candidate is asked to hit an expectation
+that standard CMYK conversion does not produce.
+
+## Mobile
+
+Navigation collapses to a toggle below `md`. The sheet closes on Escape, on an
+outside click, and on navigation, and locks body scroll while open. Wide
+assessment tables are wrapped in `TableWrap`, a focusable `role="region"`
+container that scrolls horizontally instead of pushing the page sideways — six
+columns do not fit a phone.
+
 ## Security notes
 
 - `.env*` is gitignored; only `.env.example` is tracked. Keep the Neon URL and
@@ -392,6 +425,13 @@ reports `sent` and rotates its token, a repeat within the cooldown reports
 exceeding the per-IP budget returns 429.
 
 Real email delivery was confirmed through the Resend API (`email:test`).
+
+Mobile and content packs (33 + 15 assertions, `smoke:mobile` and `smoke:ai`):
+the menu toggle is wired with `aria-expanded`, `aria-controls` and
+`aria-label`, the sheet is absent until opened, every table on every admin page
+sits inside a focusable labelled scroll region, and the AI quiz auto-grades —
+a three-of-five run returns 60, is marked `graded` with nothing awaiting review,
+and fails the 80 pass mark.
 
 Staff access (20 assertions, `smoke:staff`): each of admin, recruiter, and
 assessor signs in, is redirected to `/admin`, receives a session cookie, can

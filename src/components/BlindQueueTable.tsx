@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { TableWrap } from "./TableWrap";
 
 export type QueueRow = {
   candidateRef: string;
@@ -37,7 +38,8 @@ export default function BlindQueueTable({
           Blind review on · identities hidden
         </p>
       )}
-      <table className="table mt-3">
+      <TableWrap className="mt-3" label="Submitted attempts">
+      <table className="table">
         <thead>
           <tr>
             <th>{showIdentity ? "Candidate" : "Reference"}</th>
@@ -78,6 +80,7 @@ export default function BlindQueueTable({
           ))}
         </tbody>
       </table>
+    </TableWrap>
     </>
   );
 }

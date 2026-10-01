@@ -5,6 +5,7 @@ import { TopBar } from "@/components/TopBar";
 import { db } from "@/db";
 import { assessments, assessmentQuestions, questions, competencies } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { TableWrap } from "@/components/TableWrap";
 
 export const dynamic = "force-dynamic";
 
@@ -108,8 +109,10 @@ export default async function AssessmentsPage() {
           <h2 className="text-base font-semibold">
             Question bank ({bank.length})
           </h2>
-          <table className="table mt-3">
-            <thead>
+          <TableWrap className="mt-3">
+
+              <table className="table">
+                <thead>
               <tr>
                 <th>ID</th>
                 <th>Type</th>
@@ -138,6 +141,8 @@ export default async function AssessmentsPage() {
               ))}
             </tbody>
           </table>
+
+          </TableWrap>
         </section>
       </div>
     </main>

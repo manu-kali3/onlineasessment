@@ -5,6 +5,7 @@ import { TopBar } from "@/components/TopBar";
 import { db } from "@/db";
 import { integrations, syncLogs } from "@/db/schema";
 import { desc } from "drizzle-orm";
+import { TableWrap } from "@/components/TableWrap";
 
 export const dynamic = "force-dynamic";
 
@@ -66,8 +67,10 @@ export default async function IntegrationsPage() {
             Outbound pushes retry with backoff. Failed rows stay here until an admin
             requeues them.
           </p>
-          <table className="table mt-3">
-            <thead>
+          <TableWrap className="mt-3">
+
+              <table className="table">
+                <thead>
               <tr>
                 <th>When</th>
                 <th>Integration</th>
@@ -109,6 +112,8 @@ export default async function IntegrationsPage() {
               )}
             </tbody>
           </table>
+
+          </TableWrap>
         </section>
       </div>
     </main>

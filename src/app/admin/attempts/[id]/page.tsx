@@ -5,6 +5,7 @@ import { requirePageUser } from "@/lib/page-auth";
 import { loadAttemptDetail } from "@/lib/queries";
 import { TopBar } from "@/components/TopBar";
 import { fmtDuration } from "@/lib/time-on-task";
+import { TableWrap } from "@/components/TableWrap";
 
 export const dynamic = "force-dynamic";
 
@@ -45,8 +46,10 @@ export default async function AttemptDetailPage({
         </section>
         <section className="panel mt-6 p-5">
           <h2 className="text-base font-semibold">Per-question analytics</h2>
-          <table className="table mt-3">
-            <thead>
+          <TableWrap className="mt-3">
+
+              <table className="table">
+                <thead>
               <tr>
                 <th>#</th>
                 <th>Type</th>
@@ -107,14 +110,18 @@ export default async function AttemptDetailPage({
               )}
             </tbody>
           </table>
+
+          </TableWrap>
         </section>
         <section className="panel mt-4 p-5">
           <h2 className="text-base font-semibold">Proctoring signals</h2>
           {detail.proctorEvents.length === 0 ? (
             <p className="mt-3 text-sm text-[var(--muted)]">No signals recorded.</p>
           ) : (
-            <table className="table mt-3">
-              <thead>
+            <TableWrap className="mt-3">
+
+                <table className="table">
+                  <thead>
                 <tr>
                   <th>Time</th>
                   <th>Event</th>
@@ -147,6 +154,8 @@ export default async function AttemptDetailPage({
                 ))}
               </tbody>
             </table>
+
+            </TableWrap>
           )}
         </section>
       </div>

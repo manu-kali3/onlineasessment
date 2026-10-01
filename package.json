@@ -14,6 +14,8 @@
     "db:studio": "drizzle-kit studio",
     "db:seed": "tsx scripts/seed.ts",
     "db:seed:webdev": "tsx scripts/seed-webdev.ts",
+    "db:seed:ai": "tsx scripts/seed-ai.ts",
+    "db:seed:design": "tsx scripts/seed-graphic-design.ts",
     "db:revoke-demo": "node scripts/revoke-demo.cjs --yes",
     "db:revoke-demo:dry-run": "node scripts/revoke-demo.cjs",
     "db:create-admin": "node scripts/create-admin.cjs",
@@ -29,6 +31,8 @@
     "smoke:verify-link": "node scripts/smoke-verify-link.cjs",
     "smoke:staff": "node scripts/smoke-staff.cjs",
     "smoke:webdev": "node scripts/smoke-webdev.cjs",
+    "smoke:ai": "node scripts/smoke-ai.cjs",
+    "smoke:mobile": "node scripts/smoke-mobile.cjs",
     "email:test": "node scripts/send-test-email.cjs",
     "email:diagnose": "node scripts/diagnose-email.cjs",
     "email:prove": "node scripts/prove-delivery.cjs"

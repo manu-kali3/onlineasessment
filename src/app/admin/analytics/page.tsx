@@ -4,6 +4,7 @@ import { requirePageUser } from "@/lib/page-auth";
 import { TopBar } from "@/components/TopBar";
 import { loadBlindQueue } from "@/lib/queries";
 import BlindQueueTable from "@/components/BlindQueueTable";
+import { TableWrap } from "@/components/TableWrap";
 
 export const dynamic = "force-dynamic";
 
@@ -34,8 +35,10 @@ export default async function AnalyticsPage() {
             a very low one may be miskeyed or unfairly hard. Median time is the
             typical time on task across all attempts of the item.
           </p>
-          <table className="table mt-3">
-            <thead>
+          <TableWrap className="mt-3">
+
+              <table className="table">
+                <thead>
               <tr>
                 <th>Question</th>
                 <th>Type</th>
@@ -65,6 +68,8 @@ export default async function AnalyticsPage() {
               )}
             </tbody>
           </table>
+
+          </TableWrap>
         </section>
         <section className="panel mt-4 p-5">
           <h2 className="text-base font-semibold">Submitted attempts</h2>
