@@ -1,12 +1,12 @@
-export const dynamic = "force-dynamic";
 
-import { redirect } from "next/navigation";
 import Link from "next/link";
-import { getCurrentUser } from "@/lib/auth";
+import { requirePageUser } from "@/lib/page-auth";
 import { loadCandidateInvitations } from "@/lib/queries";
 import { AccessibilityProvider } from "@/components/AccessibilityProvider";
 import { AccessibilityControls } from "@/components/AccessibilityControls";
 import { TopBar } from "@/components/TopBar";
+
+export const dynamic = "force-dynamic";
 
 function statusTag(status: string) {
   switch (status) {
@@ -21,22 +21,16 @@ function statusTag(status: string) {
       return <span className="tag">Not started</span>;
   }
 }
-
 function fmtDeadline(d: Date) {
   return new Intl.DateTimeFormat("en-GB", {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(d);
 }
-
 export default async function CandidateDashboard() {
-  const user = await getCurrentUser();
-  if (!user) redirect("/login");
-  if (user.role !== "candidate") redirect("/admin");
-
+  const user = await requirePageUser("candidate");
   const invitations = await loadCandidateInvitations(user.id);
   const a11y = user.accessibilityProfile ?? {};
-
   return (
     <AccessibilityProvider initial={a11y}>
       <TopBar name={user.fullName} role={user.role} nav={[{ href: "/candidate", label: "My assessments" }]} />
@@ -46,18 +40,15 @@ export default async function CandidateDashboard() {
           Hi {user.fullName.split(" ")[0]}. Each assessment has its own deadline and
           timer. Your progress saves automatically.
         </p>
-
         <div className="mt-5">
           <AccessibilityControls />
         </div>
-
         <section className="mt-6 grid gap-4">
           {invitations.length === 0 && (
             <div className="panel p-6 text-sm text-[var(--muted)]">
               No assessments have been assigned to you yet.
             </div>
           )}
-
           {invitations.map((inv) => {
             const expired = inv.expiresAt.getTime() < Date.now();
             const closed = inv.status === "submitted" || inv.status === "graded";
@@ -82,7 +73,6 @@ export default async function CandidateDashboard() {
                       {statusTag(inv.status)}
                     </div>
                   </div>
-
                   <div className="flex shrink-0 items-center gap-3">
                     {inv.score !== null && (
                       <div className="text-right">

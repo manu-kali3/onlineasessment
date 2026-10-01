@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { and, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { attempts, auditLogs, proctorEvents } from "@/db/schema";
-import { getCurrentUser } from "@/lib/auth";
+import { authorize } from "@/lib/api-auth";
 import { newId } from "@/lib/id";
+import { hasDatabase } from "@/lib/env";
 
 const bodySchema = z.object({
   attemptId: z.string().min(1),
@@ -13,10 +14,12 @@ const bodySchema = z.object({
 
 /** Assessor adjudication of proctoring signals. Always human-in-the-loop. */
 export async function POST(req: Request) {
-  const user = await getCurrentUser();
-  if (!user || user.role === "candidate") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (!hasDatabase) {
+    return NextResponse.json({ error: "Database not configured" }, { status: 503 });
   }
+
+  const { user, error } = await authorize("recruiter", "assessor", "admin");
+  if (error) return error;
 
   const parsed = bodySchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) {

@@ -5,6 +5,7 @@ import { db } from "@/db";
 import { attempts, proctorEvents } from "@/db/schema";
 import { getCurrentUser } from "@/lib/auth";
 import { newId } from "@/lib/id";
+import { databaseUnavailable } from "@/lib/api-guard";
 import { computeIntegrityScore } from "@/lib/scoring";
 
 const bodySchema = z.object({
@@ -31,6 +32,9 @@ const bodySchema = z.object({
  * derived rollup so we can recompute it after a reviewer adds events.
  */
 export async function POST(req: Request) {
+  const unavailable = databaseUnavailable();
+  if (unavailable) return unavailable;
+
   const user = await getCurrentUser();
   if (!user || user.role !== "candidate") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

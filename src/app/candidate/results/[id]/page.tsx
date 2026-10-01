@@ -1,12 +1,13 @@
-export const dynamic = "force-dynamic";
 
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import Link from "next/link";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { assessments, attempts, competencies } from "@/db/schema";
-import { getCurrentUser } from "@/lib/auth";
+import { requirePageUser } from "@/lib/page-auth";
 import { TopBar } from "@/components/TopBar";
+
+export const dynamic = "force-dynamic";
 
 export default async function ResultPage({
   params,
@@ -14,27 +15,21 @@ export default async function ResultPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const user = await getCurrentUser();
-  if (!user) redirect("/login");
-
+  const user = await requirePageUser("candidate");
   const [attempt] = await db
     .select()
     .from(attempts)
     .where(and(eq(attempts.id, id), eq(attempts.candidateId, user.id)));
   if (!attempt) notFound();
-
   const [assessment] = await db
     .select()
     .from(assessments)
     .where(eq(assessments.id, attempt.assessmentId));
-
   const compRows = await db.select().from(competencies);
   const nameById = new Map(compRows.map((c) => [c.id, c.name]));
-
   const breakdown = Object.entries(attempt.competencyScores ?? {}).filter(
     ([, v]) => typeof v === "number",
   ) as [string, number][];
-
   return (
     <main className="min-h-dvh">
       <TopBar name={user.fullName} role={user.role} nav={[{ href: "/candidate", label: "My assessments" }]} />
@@ -47,7 +42,6 @@ export default async function ResultPage({
             ? "Auto-graded and complete. Every item has been scored."
             : "Submitted. The score below covers the auto-graded items only — written and video responses are awaiting assessor review, and the final score and outcome follow."}
         </p>
-
         <section className="mt-6 grid gap-4 sm:grid-cols-3">
           <div className="panel p-5">
             <div className="text-sm font-semibold text-[var(--muted)]">
@@ -80,7 +74,6 @@ export default async function ResultPage({
             </div>
           </div>
         </section>
-
         {breakdown.length > 0 && (
           <section className="panel mt-6 p-5">
             <h2 className="text-base font-semibold">Competency breakdown</h2>
@@ -109,7 +102,6 @@ export default async function ResultPage({
             </ul>
           </section>
         )}
-
         <div className="mt-6">
           <Link href="/candidate" className="btn btn-ghost">
             ← Back to my assessments

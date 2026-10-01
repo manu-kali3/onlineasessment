@@ -1,11 +1,10 @@
 import bcrypt from "bcryptjs";
-import { env } from "./env";
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { users, type User } from "@/db/schema";
-import { env } from "./env";
+import { env, hasDatabase } from "./env";
 
 const SESSION_COOKIE = "oa_session";
 const SESSION_TTL_SEC = 60 * 60 * 8; // 8h — covers one sitting of a timed test
@@ -73,15 +72,28 @@ export async function destroySession() {
 }
 
 export async function getCurrentUser(): Promise<User | null> {
+  // No cookie means no user regardless of database state, so this short-circuits
+  // before any query — important when DATABASE_URL is absent.
   const session = await readSession();
   if (!session) return null;
+  if (!hasDatabase) return null;
+
   const [user] = await db.select().from(users).where(eq(users.id, session.sub));
   return user ?? null;
 }
 
+export class AuthError extends Error {
+  constructor(
+    public readonly code: "UNAUTHENTICATED" | "FORBIDDEN",
+  ) {
+    super(code);
+    this.name = "AuthError";
+  }
+}
+
 export async function requireUser(...roles: User["role"][]) {
   const user = await getCurrentUser();
-  if (!user) throw new Error("UNAUTHENTICATED");
-  if (roles.length && !roles.includes(user.role)) throw new Error("FORBIDDEN");
+  if (!user) throw new AuthError("UNAUTHENTICATED");
+  if (roles.length && !roles.includes(user.role)) throw new AuthError("FORBIDDEN");
   return user;
 }

@@ -1,11 +1,11 @@
-export const dynamic = "force-dynamic";
 
-import { redirect } from "next/navigation";
-import { getCurrentUser } from "@/lib/auth";
+import { requirePageUser } from "@/lib/page-auth";
 import { TopBar } from "@/components/TopBar";
 import { loadRecruiterDashboard } from "@/lib/queries";
 import StatCard from "@/components/StatCard";
 import RiskQueue from "@/components/RiskQueue";
+
+export const dynamic = "force-dynamic";
 
 const adminNav = [
   { href: "/admin", label: "Overview" },
@@ -13,18 +13,12 @@ const adminNav = [
   { href: "/admin/analytics", label: "Analytics" },
   { href: "/admin/integrations", label: "Integrations" },
 ];
-
 export default async function AdminPage() {
-  const user = await getCurrentUser();
-  if (!user) redirect("/login");
-  if (user.role === "candidate") redirect("/candidate");
-
+  const user = await requirePageUser("recruiter", "assessor", "admin");
   const data = await loadRecruiterDashboard();
-
   return (
     <main className="min-h-dvh">
       <TopBar name={user.fullName} role={user.role} nav={adminNav} />
-
       <div className="mx-auto max-w-6xl px-6 py-8">
         <h1 className="text-2xl font-bold tracking-tight">Recruiter overview</h1>
         <p className="mt-1 text-sm text-[var(--muted)]">
@@ -32,7 +26,6 @@ export default async function AdminPage() {
           {data.counts.published} published assessments
           {data.normGroup ? ` · normed against ${data.normGroup}` : ""}.
         </p>
-
         <section className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
           <StatCard label="Published tests" value={data.counts.published} />
           <StatCard label="In progress" value={data.counts.inProgress} />
@@ -43,7 +36,6 @@ export default async function AdminPage() {
             value={data.averageScore !== null ? `${data.averageScore}%` : "—"}
           />
         </section>
-
         <div className="mt-6 grid gap-4 lg:grid-cols-5">
           <section className="panel p-5 lg:col-span-3">
             <h2 className="text-base font-semibold">Assessment performance</h2>
@@ -85,7 +77,6 @@ export default async function AdminPage() {
               </tbody>
             </table>
           </section>
-
           <section className="panel p-5 lg:col-span-2">
             <h2 className="text-base font-semibold">Integrity risk queue</h2>
             <p className="mt-1 text-xs text-[var(--muted)]">
@@ -95,7 +86,6 @@ export default async function AdminPage() {
             <RiskQueue items={data.riskQueue} />
           </section>
         </div>
-
         <section className="panel mt-4 p-5">
           <h2 className="text-base font-semibold">Recent attempts</h2>
           <table className="table mt-3">

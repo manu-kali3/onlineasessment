@@ -12,7 +12,6 @@ import {
   questions,
   users,
 } from "../src/db/schema";
-import { newToken } from "../src/lib/id";
 
 const hash = bcrypt.hashSync("Passw0rd!", 12);
 
@@ -235,6 +234,10 @@ async function main() {
     .onConflictDoNothing();
 
   // Invitations drive the candidate dashboard; attempts hang off them.
+  //
+  // Tokens are deterministic so re-running the seed is a no-op. The unique
+  // index is on `token`, so random tokens would append duplicate invitations
+  // on every run instead of skipping.
   const in7Days = new Date(Date.now() + 7 * 24 * 60 * 60_000);
 
   await db
@@ -244,7 +247,7 @@ async function main() {
         id: "inv-1",
         assessmentId: "asmt-core-b",
         candidateId: "usr-cand-1",
-        token: newToken(),
+        token: "seed-token-inv-1",
         expiresAt: in7Days,
         status: "invited",
       },
@@ -252,7 +255,7 @@ async function main() {
         id: "inv-2",
         assessmentId: "asmt-core-b",
         candidateId: "usr-cand-2",
-        token: newToken(),
+        token: "seed-token-inv-2",
         expiresAt: in7Days,
         status: "in_progress",
       },
@@ -260,7 +263,7 @@ async function main() {
         id: "inv-3",
         assessmentId: "asmt-core-b",
         candidateId: "usr-cand-3",
-        token: newToken(),
+        token: "seed-token-inv-3",
         expiresAt: in7Days,
         status: "submitted",
       },
@@ -268,7 +271,7 @@ async function main() {
         id: "inv-4",
         assessmentId: "asmt-sji-lead",
         candidateId: "usr-cand-1",
-        token: newToken(),
+        token: "seed-token-inv-4",
         expiresAt: in7Days,
         status: "invited",
       },

@@ -43,7 +43,7 @@ export default function TestRunner({
   proctoring: boolean;
 }) {
   const router = useRouter();
-  const { highContrast } = useA11y();
+  const { highContrast, textToSpeech } = useA11y();
 
   const [index, setIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, unknown>>(() =>
@@ -187,14 +187,16 @@ export default function TestRunner({
       </header>
 
       <div className="mx-auto max-w-4xl px-6 py-6">
-        <ProctorLock attemptId={attemptId} proctoring={proctoring} onEvent={() => {}} />
+        <ProctorLock attemptId={attemptId} proctoring={proctoring} />
 
         <div className="mt-4 flex items-center justify-between">
           <span className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">
             Question {index + 1} of {questions.length}
           </span>
           <div className="flex items-center gap-2">
-            {current && <SpeakButton prompt={current.prompt} />}
+            {current && (
+              <SpeakButton prompt={current.prompt} autoRead={textToSpeech} />
+            )}
             <button
               type="button"
               className="btn btn-ghost !py-1 !px-2 !text-xs"

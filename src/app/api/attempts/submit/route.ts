@@ -12,6 +12,7 @@ import {
   responses,
 } from "@/db/schema";
 import { getCurrentUser } from "@/lib/auth";
+import { databaseUnavailable } from "@/lib/api-guard";
 import {
   computeCompetencyScores,
   computeOverallScore,
@@ -30,6 +31,9 @@ const bodySchema = z.object({
  * Subjective items are left for human assessors.
  */
 export async function POST(req: Request) {
+  const unavailable = databaseUnavailable();
+  if (unavailable) return unavailable;
+
   const user = await getCurrentUser();
   if (!user || user.role !== "candidate") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

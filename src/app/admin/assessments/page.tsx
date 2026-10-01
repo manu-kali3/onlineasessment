@@ -1,11 +1,12 @@
-export const dynamic = "force-dynamic";
 
-import { redirect } from "next/navigation";
-import { getCurrentUser } from "@/lib/auth";
+
+import { requirePageUser } from "@/lib/page-auth";
 import { TopBar } from "@/components/TopBar";
 import { db } from "@/db";
 import { assessments, assessmentQuestions, questions, competencies } from "@/db/schema";
 import { eq } from "drizzle-orm";
+
+export const dynamic = "force-dynamic";
 
 const adminNav = [
   { href: "/admin", label: "Overview" },
@@ -13,12 +14,8 @@ const adminNav = [
   { href: "/admin/analytics", label: "Analytics" },
   { href: "/admin/integrations", label: "Integrations" },
 ];
-
 export default async function AssessmentsPage() {
-  const user = await getCurrentUser();
-  if (!user) redirect("/login");
-  if (user.role === "candidate") redirect("/candidate");
-
+  const user = await requirePageUser("recruiter", "assessor", "admin");
   const rows = await db.select().from(assessments);
   const questionRows = await db
     .select({
@@ -33,9 +30,7 @@ export default async function AssessmentsPage() {
     .innerJoin(questions, eq(questions.id, assessmentQuestions.questionId))
     .leftJoin(competencies, eq(competencies.id, questions.competencyId))
     .orderBy(assessmentQuestions.position);
-
   const bank = await db.select().from(questions);
-
   return (
     <main className="min-h-dvh">
       <TopBar name={user.fullName} role={user.role} nav={adminNav} />
@@ -45,7 +40,6 @@ export default async function AssessmentsPage() {
           Build assessments from the validated bank, then publish to invite
           candidates.
         </p>
-
         <section className="mt-6 grid gap-4">
           {rows.map((a) => {
             const items = questionRows.filter((q) => q.assessmentId === a.id);
@@ -88,7 +82,6 @@ export default async function AssessmentsPage() {
                   </div>
                   <button className="btn btn-primary">Publish / invite</button>
                 </div>
-
                 {items.length > 0 && (
                   <ol className="mt-4 space-y-1.5 border-t border-[var(--line)] pt-4">
                     {items.map((q) => (
@@ -111,7 +104,6 @@ export default async function AssessmentsPage() {
             );
           })}
         </section>
-
         <section className="panel mt-6 p-5">
           <h2 className="text-base font-semibold">
             Question bank ({bank.length})

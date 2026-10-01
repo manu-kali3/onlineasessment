@@ -8,7 +8,6 @@ type Severity = "info" | "warning" | "critical";
 type Props = {
   attemptId: string;
   proctoring: boolean;
-  onEvent: (type: string, severity: Severity) => void;
 };
 
 /**
@@ -17,17 +16,13 @@ type Props = {
  * determined candidate can always defeat client-side JS, so the server treats
  * these as evidence for a human reviewer, not as ground truth.
  */
-export default function ProctorLock({ attemptId, proctoring, onEvent }: Props) {
+export default function ProctorLock({ attemptId, proctoring }: Props) {
   const { textToSpeech } = useA11y();
   const queue = useRef<{ type: string; severity: Severity }[]>([]);
 
-  const push = useCallback(
-    (type: string, severity: Severity) => {
-      onEvent(type, severity);
-      queue.current.push({ type, severity });
-    },
-    [onEvent],
-  );
+  const push = useCallback((type: string, severity: Severity) => {
+    queue.current.push({ type, severity });
+  }, []);
 
   // Batch writes: signals are buffered and flushed every 10s so a flailing
   // candidate cannot turn proctoring into a write-amplification problem.

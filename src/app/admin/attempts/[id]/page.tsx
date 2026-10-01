@@ -1,11 +1,12 @@
-export const dynamic = "force-dynamic";
 
-import { redirect, notFound } from "next/navigation";
+import { notFound } from "next/navigation";
 import Link from "next/link";
-import { getCurrentUser } from "@/lib/auth";
+import { requirePageUser } from "@/lib/page-auth";
 import { loadAttemptDetail } from "@/lib/queries";
 import { TopBar } from "@/components/TopBar";
 import { fmtDuration } from "@/lib/time-on-task";
+
+export const dynamic = "force-dynamic";
 
 const adminNav = [
   { href: "/admin", label: "Overview" },
@@ -13,20 +14,15 @@ const adminNav = [
   { href: "/admin/analytics", label: "Analytics" },
   { href: "/admin/integrations", label: "Integrations" },
 ];
-
 export default async function AttemptDetailPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const user = await getCurrentUser();
-  if (!user) redirect("/login");
-  if (user.role === "candidate") redirect("/candidate");
-
+  const user = await requirePageUser("recruiter", "assessor", "admin");
   const detail = await loadAttemptDetail(id, user.role);
   if (!detail) notFound();
-
   return (
     <main className="min-h-dvh">
       <TopBar name={user.fullName} role={user.role} nav={adminNav} />
@@ -34,7 +30,6 @@ export default async function AttemptDetailPage({
         <Link href="/admin/analytics" className="btn btn-ghost !py-1 !px-2 !text-xs">
           ← Back to analytics
         </Link>
-
         <h1 className="mt-4 text-2xl font-bold tracking-tight">
           {detail.attempt.assessmentTitle}
         </h1>
@@ -42,14 +37,12 @@ export default async function AttemptDetailPage({
           {detail.attempt.candidate.fullName}
           {detail.attempt.blindReview && " · blind review active"}
         </p>
-
         <section className="mt-5 grid gap-4 sm:grid-cols-4">
           <Tile label="Score" value={detail.attempt.score !== null ? `${detail.attempt.score}%` : "—"} />
           <Tile label="Percentile" value={detail.attempt.percentile ?? "—"} />
           <Tile label="Integrity" value={detail.attempt.integrityScore ?? "—"} />
           <Tile label="Status" value={detail.attempt.status.replace("_", " ")} />
         </section>
-
         <section className="panel mt-6 p-5">
           <h2 className="text-base font-semibold">Per-question analytics</h2>
           <table className="table mt-3">
@@ -115,7 +108,6 @@ export default async function AttemptDetailPage({
             </tbody>
           </table>
         </section>
-
         <section className="panel mt-4 p-5">
           <h2 className="text-base font-semibold">Proctoring signals</h2>
           {detail.proctorEvents.length === 0 ? (
@@ -161,7 +153,6 @@ export default async function AttemptDetailPage({
     </main>
   );
 }
-
 function Tile({ label, value }: { label: string; value: string | number }) {
   return (
     <div className="panel p-4">

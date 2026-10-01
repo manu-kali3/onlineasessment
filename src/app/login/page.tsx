@@ -1,9 +1,10 @@
-export const dynamic = "force-dynamic";
 
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { hasDatabase } from "@/lib/env";
 import LoginForm from "./LoginForm";
+
+export const dynamic = "force-dynamic";
 
 export default async function LoginPage() {
   if (!hasDatabase) {

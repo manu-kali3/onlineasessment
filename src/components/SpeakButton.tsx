@@ -1,25 +1,67 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+
+function speechSupported() {
+  return typeof window !== "undefined" && "speechSynthesis" in window;
+}
 
 export function readPrompt(prompt: string) {
-  if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+  if (!speechSupported()) return;
   window.speechSynthesis.cancel();
   const utterance = new SpeechSynthesisUtterance(prompt);
   utterance.rate = 1;
   window.speechSynthesis.speak(utterance);
 }
 
-/** Wraps a question so TTS can read it on demand. */
-export function SpeakButton({ prompt, label = "Read aloud" }: { prompt: string; label?: string }) {
+/**
+ * Reads a question aloud for candidates who benefit from text-to-speech.
+ *
+ * Support is detected in an effect rather than during render: branching on
+ * `typeof window` in the render body returns the button on the server and
+ * nothing on the client, which is a hydration mismatch.
+ *
+ * When `autoRead` is set (the candidate's saved text-to-speech preference), the
+ * prompt is spoken as soon as it changes — so navigating questions reads each
+ * new one without the candidate reaching for the button.
+ */
+export function SpeakButton({
+  prompt,
+  label = "Read aloud",
+  autoRead = false,
+}: {
+  prompt: string;
+  label?: string;
+  autoRead?: boolean;
+}) {
+  const [supported, setSupported] = useState(false);
   const [playing, setPlaying] = useState(false);
-  if (typeof window === "undefined" || !("speechSynthesis" in window)) return null;
+
+  useEffect(() => {
+    setSupported(speechSupported());
+  }, []);
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      window.speechSynthesis.onend = () => setPlaying(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (autoRead && supported && prompt) {
+      readPrompt(prompt);
+      setPlaying(true);
+    }
+  }, [autoRead, supported, prompt]);
+
+  if (!supported) return null;
 
   return (
     <button
       type="button"
       className="btn btn-ghost !py-1 !px-2 !text-xs"
       aria-label={label}
+      aria-pressed={playing}
       onClick={() => {
         if (playing && window.speechSynthesis.speaking) {
           window.speechSynthesis.cancel();
@@ -28,7 +70,6 @@ export function SpeakButton({ prompt, label = "Read aloud" }: { prompt: string; 
         }
         readPrompt(prompt);
         setPlaying(true);
-        window.speechSynthesis.onend = () => setPlaying(false);
       }}
     >
       {playing ? "Stop" : "Read aloud"}
