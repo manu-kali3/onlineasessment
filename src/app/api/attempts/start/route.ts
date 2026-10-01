@@ -9,17 +9,11 @@ import { databaseUnavailable } from "@/lib/api-guard";
 
 const bodySchema = z.object({
   invitationId: z.string().min(1),
-  hardwareCheck: z.object({
-    camera: z.boolean(),
-    microphone: z.boolean(),
-    downloadMbps: z.number().nonnegative(),
-    passed: z.boolean(),
-  }),
 });
 
 /**
- * System check gate. Creates the attempt row and stamps startedAt, which locks
- * the countdown server-side (the client timer is only a mirror).
+ * Starts an attempt and stamps startedAt, which locks the countdown
+ * server-side (the client timer is only a mirror).
  */
 export async function POST(req: Request) {
   const unavailable = databaseUnavailable();
@@ -35,7 +29,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
 
-  const { invitationId, hardwareCheck } = parsed.data;
+  const { invitationId } = parsed.data;
 
   const [invitation] = await db
     .select()
@@ -79,7 +73,6 @@ export async function POST(req: Request) {
       .set({
         startedAt: new Date(),
         status: "in_progress",
-        hardwareCheck,
       })
       .where(eq(attempts.id, attemptId));
   } else {
@@ -90,7 +83,6 @@ export async function POST(req: Request) {
       candidateId: user.id,
       status: "in_progress",
       startedAt: new Date(),
-      hardwareCheck,
     });
   }
 

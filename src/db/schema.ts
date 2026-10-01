@@ -259,12 +259,6 @@ export const attempts = pgTable(
     competencyScores: jsonb("competency_scores").$type<
       Record<string, number>
     >(),
-    hardwareCheck: jsonb("hardware_check").$type<{
-      camera: boolean;
-      microphone: boolean;
-      downloadMbps: number;
-      passed: boolean;
-    }>(),
     integrityScore: real("integrity_score"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()

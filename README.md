@@ -91,9 +91,8 @@ users ──< assessmentInvitations >── assessments ──< assessmentQuesti
 
 1. `/login` → role-based redirect.
 2. `/candidate` — invitations with deadlines, status, and any score.
-3. `/candidate/assessment/[id]` — accessibility controls, recording consent, and
-   the **system check**: camera + microphone via `getUserMedia` and a timed
-   download from `/api/system-check/payload` against a 5 Mbps floor.
+3. `/candidate/assessment/[id]` — accessibility controls, proctoring consent
+   where required, and the timer summary. Pressing start begins the attempt.
 4. `/api/attempts/start` freezes `startedAt` server-side and returns the
    attempt. Refreshing mid-test resumes the same attempt rather than restarting.
 5. `/candidate/test/[id]` — the runner. One question at a time, per-type inputs,
@@ -155,11 +154,10 @@ graded so far.
 | --- | --- | --- |
 | POST | `/api/auth/login` | Credential check, sets session cookie |
 | POST | `/api/auth/logout` | Clears session |
-| POST | `/api/attempts/start` | System-check gate; creates/resumes attempt, stamps `startedAt` |
+| POST | `/api/attempts/start` | Creates/resumes the attempt, stamps `startedAt` |
 | POST | `/api/attempts/response` | Autosave one answer, accumulate time-on-task |
 | POST | `/api/attempts/submit` | Auto-grade, score, percentile, competency rollup |
 | POST | `/api/attempts/proctor` | Ingest integrity signals, recompute integrity score |
-| GET | `/api/system-check/payload` | 256 KB stream for the bandwidth probe |
 | GET | `/api/admin/attempts/[id]` | Per-question analytics, redacted per blind review |
 | POST | `/api/admin/proctor/resolve` | Assessor adjudication of proctoring events |
 

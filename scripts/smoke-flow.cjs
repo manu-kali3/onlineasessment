@@ -31,18 +31,14 @@ async function main() {
   const cookie = await login("jordan@portal.test", "Passw0rd!");
   console.log("logged in as jordan (seeded in-progress attempt)");
 
-  const HW = { camera: true, microphone: true, downloadMbps: 42.5, passed: true };
-
   // inv-2 already has att-2 in progress; start must RESUME, not create a new one.
   const start1 = await post("/api/attempts/start", cookie, {
     invitationId: "inv-2",
-    hardwareCheck: HW,
   });
   console.log(`start #1: ${start1.status} ${JSON.stringify(start1.data)}`);
 
   const start2 = await post("/api/attempts/start", cookie, {
     invitationId: "inv-2",
-    hardwareCheck: HW,
   });
   console.log(`start #2 (resume): ${start2.status} ${JSON.stringify(start2.data)}`);
 

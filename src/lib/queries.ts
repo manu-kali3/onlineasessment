@@ -426,7 +426,6 @@ export async function loadAttemptDetail(
       submittedAt: attempt.submittedAt,
       integrityScore: attempt.integrityScore,
       competencyScores: attempt.competencyScores,
-      hardwareCheck: attempt.hardwareCheck,
       blindReview: blind,
       candidate: candidate
         ? { fullName: candidate.fullName, email: candidate.email }

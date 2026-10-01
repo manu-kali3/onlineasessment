@@ -1,9 +1,12 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useState } from "react";
-import SystemCheck, { type HardwareResult } from "./SystemCheck";
+import { useRouter } from "next/navigation";
 
+/**
+ * Pre-flight screen shown before an attempt starts. Collects proctoring consent
+ * when the assessment is proctored, then opens the attempt.
+ */
 export default function StartGate({
   invitationId,
   resume,
@@ -21,21 +24,19 @@ export default function StartGate({
   const [starting, setStarting] = useState(false);
   const [consented, setConsented] = useState(!requiresProctoring);
   const [error, setError] = useState<string | null>(null);
-  const [hardware, setHardware] = useState<HardwareResult | null>(null);
 
   const durationMin = Math.round(baseDurationMin * (1 + extensionPct / 100));
-  const canStart =
-    hardware !== null && (!requiresProctoring || consented) && !starting;
+  const canStart = (!requiresProctoring || consented) && !starting;
 
   async function begin() {
-    if (!hardware || !canStart) return;
+    if (!canStart) return;
     setStarting(true);
     setError(null);
     try {
       const res = await fetch("/api/attempts/start", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ invitationId, hardwareCheck: hardware }),
+        body: JSON.stringify({ invitationId }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -52,8 +53,6 @@ export default function StartGate({
 
   return (
     <div className="space-y-4">
-      <SystemCheck onResult={setHardware} extensionPct={extensionPct} />
-
       {requiresProctoring && (
         <div className="panel p-5">
           <h2 className="text-base font-semibold">Monitoring consent</h2>
@@ -83,8 +82,8 @@ export default function StartGate({
 
       {resume && (
         <div className="panel p-5 text-sm text-[var(--muted)]">
-          This attempt is already in progress. Running the system check returns you
-          to where you left off; the timer does not reset.
+          This attempt is already in progress. Resuming returns you to where you
+          left off; the timer does not reset.
         </div>
       )}
 
@@ -95,22 +94,16 @@ export default function StartGate({
             ` (${baseDurationMin} min plus a ${extensionPct}% approved extension)`}
           . Pressing start freezes the clock and enables integrity monitoring.
         </p>
-        <button
-          className="btn btn-primary mt-4"
-          disabled={!canStart}
-          onClick={() => void begin()}
-        >
+        <button className="btn btn-primary mt-4" disabled={!canStart} onClick={() => void begin()}>
           {starting
-            ? "Launching…"
-            : hardware === null
-              ? "Run the system check first"
-              : resume
-                ? "Resume assessment"
-                : "Start assessment"}
+            ? "Starting…"
+            : resume
+              ? "Resume assessment"
+              : "Start assessment"}
         </button>
-        {hardware === null && (
+        {requiresProctoring && !consented && (
           <p className="mt-2 text-xs text-[var(--muted)]">
-            The check must pass before the assessment can begin.
+            Consent is required before a proctored assessment can begin.
           </p>
         )}
       </div>
