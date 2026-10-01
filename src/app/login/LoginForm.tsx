@@ -16,11 +16,42 @@ export default function LoginForm() {
   );
   const [busy, setBusy] = useState(false);
 
+  // Set when sign-in is refused because the address is unverified, which is
+  // exactly when offering a fresh link is useful.
+  const [unverifiedEmail, setUnverifiedEmail] = useState<string | null>(null);
+  const [resending, setResending] = useState(false);
+  const [resendNote, setResendNote] = useState<string | null>(null);
+
+  async function resendVerification() {
+    if (!unverifiedEmail || resending) return;
+    setResending(true);
+    setResendNote(null);
+    try {
+      const res = await fetch("/api/auth/resend-verification", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ email: unverifiedEmail }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setResendNote(data.error ?? "Could not send the link");
+        return;
+      }
+      setResendNote(data.message);
+    } catch {
+      setResendNote("Network error. Please try again.");
+    } finally {
+      setResending(false);
+    }
+  }
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
     setError(null);
     setNotice(null);
+    setUnverifiedEmail(null);
+    setResendNote(null);
     try {
       const res = await fetch("/api/auth/login", {
         method: "POST",
@@ -30,6 +61,9 @@ export default function LoginForm() {
       const data = await res.json();
       if (!res.ok) {
         setError(data.error ?? "Sign in failed");
+        if (data.needsVerification && data.email) {
+          setUnverifiedEmail(data.email);
+        }
         return;
       }
       router.push(data.redirect);
@@ -92,6 +126,28 @@ export default function LoginForm() {
         >
           {error}
         </p>
+      )}
+
+      {unverifiedEmail && (
+        <div className="mt-4 rounded-lg border border-[var(--line)] p-4">
+          <p className="text-sm font-semibold">Still waiting on your email?</p>
+          <p className="mt-1 text-sm text-[var(--muted)]">
+            Verification links expire after 60 minutes and are single-use.
+          </p>
+          <button
+            type="button"
+            className="btn btn-ghost mt-3 w-full !py-2 !text-sm"
+            onClick={() => void resendVerification()}
+            disabled={resending}
+          >
+            {resending ? "Sending…" : "Resend verification link"}
+          </button>
+          {resendNote && (
+            <p role="status" className="mt-2 text-xs text-[var(--muted)]">
+              {resendNote}
+            </p>
+          )}
+        </div>
       )}
 
       <button className="btn btn-primary mt-5 w-full" disabled={busy}>

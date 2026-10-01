@@ -15,6 +15,30 @@ export default function RegisterPage() {
   const [done, setDone] = useState<{ message: string; devUrl?: string } | null>(
     null,
   );
+  const [resending, setResending] = useState(false);
+  const [resendNote, setResendNote] = useState<string | null>(null);
+
+  async function resendVerification() {
+    setResending(true);
+    setResendNote(null);
+    try {
+      const res = await fetch("/api/auth/resend-verification", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setResendNote(data.error ?? "Could not send the link");
+        return;
+      }
+      setResendNote(data.message);
+    } catch {
+      setResendNote("Network error. Please try again.");
+    } finally {
+      setResending(false);
+    }
+  }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -68,6 +92,20 @@ export default function RegisterPage() {
                 Open verification link
               </a>
             </div>
+          )}
+
+          <button
+            type="button"
+            className="btn btn-ghost mt-3 w-full"
+            onClick={() => void resendVerification()}
+            disabled={resending}
+          >
+            {resending ? "Sending…" : "Resend verification link"}
+          </button>
+          {resendNote && (
+            <p role="status" className="mt-2 text-xs text-[var(--muted)]">
+              {resendNote}
+            </p>
           )}
 
           <Link href="/login" className="btn btn-primary mt-5 w-full">

@@ -22,6 +22,7 @@
     "smoke:auth": "node scripts/smoke-auth.cjs",
     "smoke:reset-password": "node scripts/smoke-reset.cjs",
     "smoke:login-page": "node scripts/smoke-login-page.cjs",
+    "smoke:resend": "node scripts/smoke-resend.cjs",
     "email:test": "node scripts/send-test-email.cjs"
   },
   "dependencies": {

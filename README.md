@@ -75,6 +75,7 @@ If demo accounts were ever seeded against a real database, remove them with
 | `npm run smoke:reset` | Reset the fixture the flow test consumes |
 | `npm run email:test you@example.com` | Send a real email through Resend |
 | `npm run smoke:login-page` | Assert the login page exposes no demo credentials |
+| `npm run smoke:resend` | Resend cooldown, token rotation, and enumeration resistance |
 
 The smoke scripts expect a server on `$BASE` (default `http://localhost:3120`),
 and several sign in as the seeded demo accounts, so run `SEED_DEMO=1 npm run
@@ -180,6 +181,7 @@ graded so far.
 | POST | `/api/auth/logout` | Clears session |
 | POST | `/api/auth/register` | Create a candidate account, email a verification link |
 | GET | `/api/auth/verify-email` | Consume a verification token, then redirect |
+| POST | `/api/auth/resend-verification` | Re-send a verification link, rate limited |
 | POST | `/api/auth/forgot-password` | Email a reset link (never reveals whether an account exists) |
 | POST | `/api/auth/reset-password` | Consume a reset token, set a new password, revoke sessions |
 | POST | `/api/attempts/start` | Creates/resumes the attempt, stamps `startedAt` |
@@ -236,6 +238,14 @@ registered: both return an identical 200 for known and unknown addresses, and a
 failed verification or reset returns one generic message that cannot be used to
 probe which tokens were ever valid.
 
+**Resending a verification link** is offered in two places: on the register
+confirmation screen, and on the sign-in page for an account that exists but is
+still unverified. Because it is unauthenticated, it carries a 60-second cooldown
+per address — a second request inside that window is a silent no-op returning the
+same response, so the endpoint cannot be used to mail-bomb someone. Issuing a new
+link supersedes every outstanding verification token, so only the most recent
+email works and an intercepted older link is useless.
+
 ## Security notes
 
 - `.env*` is gitignored; only `.env.example` is tracked. Keep the Neon URL and
@@ -269,6 +279,11 @@ Password reset (18 assertions): weak new passwords rejected, reset accepted,
 a pre-reset session cookie no longer reaching the dashboard, the new password
 working and the old one failing.
 
+Verification resend (15 assertions): an immediate resend after registration is a
+no-op, a resend past the cooldown rotates the token and consumes the previous
+one, a second resend is silently suppressed, and unknown or already-verified
+addresses return the identical response.
+
 Real email delivery was confirmed through the Resend API (`email:test`).
 
 The rest is covered by the candidate, recruiter, and blind-review checks below,
@@ -298,8 +313,10 @@ database with the seeded data, the smoke scripts confirm:
 
 - **No rate limiting.** The register, forgot-password, and reset endpoints are
   unauthenticated and unbounded, so they can be used for credential stuffing or
-  to mail-bomb an address. Needs a per-IP and per-account limiter, ideally
-  durable across instances rather than in-process.
+  to mail-bomb an address. The resend-verification endpoint has a 60-second
+  per-address cooldown, but that is a single guard rather than a real limiter.
+  All of these need per-IP and per-account limits, ideally durable across
+  instances rather than in-process.
 - **Unverified accounts are only gated at login.** A self-registered but
   unverified user still occupies a row and can trigger verification emails.
 - **Duplicate registration does not resend.** It returns the generic response
