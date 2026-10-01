@@ -52,8 +52,17 @@ All use the password `Passw0rd!`.
 | `npm run db:migrate` | Apply generated migration files |
 | `npm run db:studio` | Browse data in Drizzle Studio |
 | `npm run db:seed` | Idempotent demo data |
+| `npm run smoke` | Auth, role separation, and blind-review checks against a running server |
+| `npm run smoke:flow` | Full candidate journey: start, autosave, submit, score |
+| `npm run smoke:reset` | Reset the fixture the flow test consumes |
 
-`db:seed` uses `onConflictDoNothing` throughout, so it is safe to re-run.
+`db:seed` uses `onConflictDoNothing` throughout, so it is safe to re-run. The
+invitation tokens are deterministic for the same reason: the unique index is on
+`token`, so random tokens would append duplicates each run.
+
+The smoke scripts expect a server on `$BASE` (default `http://localhost:3120`),
+so run `npm start -- -p 3120` first. `smoke:flow` consumes a seeded attempt and
+submits it, so re-run `smoke:reset` before running it again.
 
 ## Data model
 
@@ -112,11 +121,17 @@ user's profile.
 
 ## Design decisions worth knowing
 
-**Blind review is enforced server-side.** `blindReview` on an assessment strips
-name, email, DOB, and gender from assessor queries, not just the UI. Candidates
-appear as stable per-attempt pseudonyms (`004-a7f2c1`). Free-text and video
-answers are withheld entirely during blind review, because candidates often
-identify themselves inside the answer.
+**Blind review is enforced in the data layer, not the view.** `blindReview` on
+an assessment strips name, email, DOB, and gender from the query results, not
+just the UI. Candidates appear as stable per-attempt pseudonyms (`004-a7f2c1`).
+Free-text and video answers are withheld entirely during blind review, because
+candidates often identify themselves inside the answer.
+
+This matters more than it first appears: a React Server Component payload is
+serialised into the HTML, so hiding a name in JSX is not enough — an assessor
+could read it in view-source. Names are therefore only ever selected for an
+admin viewer. The smoke script asserts this and checks three pages × three
+roles.
 
 **Integrity signals flag, they never auto-fail.** Tab switches, fullscreen
 exits, and clipboard attempts are recorded by `ProctorLock` and rolled into a
@@ -153,11 +168,35 @@ graded so far.
 - `.env*` is gitignored; only `.env.example` is tracked. Keep the Neon URL local
   and rotate it if it is ever exposed.
 - Login returns one generic message for both unknown users and wrong passwords,
-  to avoid account enumeration.
+  and hashes against a dummy value when the email is unknown so the two branches
+  take comparable time. Request bodies are capped at 4KB and passwords at 72
+  bytes, since bcrypt silently truncates beyond that.
 - All candidate routes verify `attempts.candidateId` matches the session user, so
   one candidate cannot read or write another's attempt by guessing an ID.
+- The autosave endpoint verifies the question belongs to the attempt's
+  assessment, so a candidate cannot submit answers against arbitrary bank items.
 - Proctoring media is stored behind a `consentGranted` flag with
   `retentionExpiresAt`, reflecting that recordings are personal data.
+
+## Verified
+
+`npm run typecheck` and `npm run build` both pass clean. Against a real Neon
+database with the seeded data, the smoke scripts confirm:
+
+- sign-in for all four roles, and session cookies
+- role separation: a candidate hitting `/admin/integrations` is redirected to
+  `/candidate`, a recruiter hitting `/candidate` to `/admin`
+- 401 on every API route without a session, and 404 on another candidate's
+  attempt
+- blind review holds in the serialised payload for recruiters and assessors
+  across `/admin`, `/admin/analytics`, and `/admin/attempts/[id]`, while admins
+  still see names
+- start → resume returns the same attempt and does not restart the timer
+- autosave accumulates time-on-task across repeated saves
+- submitting returns a score with `passed: null` and `itemsPendingReview: 1`
+  while the free-text item is unreviewed
+- resubmission returns 409, and proctor signals after submission return 409
+- an attempt deadline is enforced server-side, not just by the client countdown
 
 ## Not built yet
 
@@ -174,4 +213,18 @@ Honest gaps, in rough priority order:
   `multiple_faces`, and `gaze_off_screen` types that are already defined.
 - **Outbound ATS push.** `integrations`, `syncLogs`, and the schema exist; the
   worker that drains the queue into Workday/Greenhouse/Lever does not.
+- **Assessor grading UI.** Subjective responses are withheld during blind review
+  and there is a `responses.assessorComment` column, but no screen to award a
+  rubric score. This is the main gap: a submitted attempt stays `submitted`
+  until someone can grade it.
 - **Real-time websockets.** Results are read on navigation, not pushed.
+
+## Environment notes
+
+- Pin `next` to `>=16.3.8`. On 16.3.6 the build wrote NUL bytes into
+  `.next/BUILD_ID`, `.next/server/pages-manifest.json`, and
+  `.next/server/functions-config-manifest.json`, which made `next start` die at
+  startup with `SyntaxError: Unexpected token`. Reproduced on Windows with Node
+  24; 16.3.8 writes valid JSON.
+- `AUTH_SECRET` must be set for anything real. The dev default triggers a
+  console warning in production builds rather than failing silently.

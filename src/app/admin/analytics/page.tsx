@@ -15,7 +15,7 @@ const adminNav = [
 ];
 export default async function AnalyticsPage() {
   const user = await requirePageUser("recruiter", "assessor", "admin");
-  const data = await loadBlindQueue();
+  const data = await loadBlindQueue(user.role);
   return (
     <main className="min-h-dvh">
       <TopBar name={user.fullName} role={user.role} nav={adminNav} />

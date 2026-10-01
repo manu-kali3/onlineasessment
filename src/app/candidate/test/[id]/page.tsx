@@ -31,11 +31,29 @@ export default async function TestPage({
     redirect(`/candidate/results/${attempt.id}`);
   }
   if (!attempt.startedAt) redirect("/candidate");
+
   const [assessment] = await db
     .select()
     .from(assessments)
     .where(eq(assessments.id, attempt.assessmentId));
   if (!assessment) notFound();
+
+  // Enforce the deadline on the server. The countdown in the client is only a
+  // mirror; without this check a candidate could ignore the timer and keep
+  // submitting, since the API never compared against the deadline.
+  const a11y0 = user.accessibilityProfile ?? {};
+  const deadlineMs =
+    attempt.startedAt.getTime() +
+    assessment.durationMin * 60_000 *
+      (1 + (a11y0.timeExtensionPct ?? 0) / 100);
+  const expired = Date.now() > deadlineMs;
+  if (expired) {
+    await db
+      .update(attempts)
+      .set({ status: "expired" })
+      .where(eq(attempts.id, attempt.id));
+    redirect(`/candidate/results/${attempt.id}`);
+  }
   const linked = await db
     .select({
       question: questions,
@@ -58,7 +76,7 @@ export default async function TestPage({
     codingSpec: l.question.codingSpec ?? null,
     timeLimitSec: l.question.timeLimitSec,
   }));
-  const a11y = user.accessibilityProfile ?? {};
+  const a11y = a11y0;
   return (
     <AccessibilityProvider initial={a11y}>
       <TestRunner

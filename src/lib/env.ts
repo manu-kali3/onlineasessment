@@ -5,12 +5,28 @@ import { z } from "zod";
  * `next build` imports every route module to prerender, and it must not fail
  * simply because the build machine has no database configured. The requirement
  * is enforced at query time instead — see src/db/index.ts.
+ *
+ * `.env.local` is loaded here for the same reason `db/index.ts` does it: CLI
+ * entrypoints such as `scripts/seed.ts` run outside the Next runtime, which is
+ * the only place Next injects `.env.local` automatically. Real environment
+ * variables always win, so this never overrides CI or production config.
  */
+if (!process.env.DATABASE_URL && typeof process !== "undefined") {
+  // Synchronous on purpose: a top-level `await import()` would make this module
+  // async, which breaks tooling that loads it through CommonJS (tsx/esbuild).
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const dotenv = require("dotenv") as { config: (o: unknown) => void };
+    dotenv.config({ path: ".env.local", quiet: true });
+  } catch {
+    // dotenv unavailable — real environment variables are used instead.
+  }
+}
 const envSchema = z.object({
   DATABASE_URL: z.string().optional(),
   AUTH_SECRET: z
     .string()
-    .default("dev-only-insecure-secret-change-me-now-please-change")
+    .default("dev-only-insecure-secret-change-me-now-please-change"),
   NEXT_PUBLIC_APP_URL: z.string().default("http://localhost:3000"),
   ATS_WEBHOOK_SECRET: z.string().default("dev-ats-secret"),
   PROCTORING_WEBHOOK_SECRET: z.string().default("dev-proctor-secret"),

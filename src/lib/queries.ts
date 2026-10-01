@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
 import {
   assessmentInvitations,
@@ -49,7 +49,9 @@ export type DashboardData = {
   }[];
 };
 
-export async function loadRecruiterDashboard(): Promise<DashboardData> {
+export async function loadRecruiterDashboard(
+  viewerRole: "candidate" | "recruiter" | "assessor" | "admin" = "recruiter",
+): Promise<DashboardData> {
   const [assessmentRows, attemptRows, userRows, proctorRows] = await Promise.all([
     db.select().from(assessments),
     db.select().from(attempts),
@@ -113,7 +115,12 @@ export async function loadRecruiterDashboard(): Promise<DashboardData> {
     .slice(0, 8)
     .map((a) => ({
       id: a.id,
-      candidateName: nameById.get(a.candidateId) ?? "Unknown",
+      // Identities are admin-only. Recruiters and assessors see a stable
+      // pseudonym so blind review holds, including in the serialised payload.
+      candidateName:
+        viewerRole === "admin"
+          ? (nameById.get(a.candidateId) ?? "Unknown")
+          : `${shortRef(a.id)}`,
       assessmentTitle: titleById.get(a.assessmentId) ?? "—",
       status: a.status,
       score: a.score,
@@ -132,7 +139,10 @@ export async function loadRecruiterDashboard(): Promise<DashboardData> {
           : 100);
       return {
         attemptId: a.id,
-        candidateName: nameById.get(a.candidateId) ?? "Unknown",
+        candidateName:
+          viewerRole === "admin"
+            ? (nameById.get(a.candidateId) ?? "Unknown")
+            : shortRef(a.id),
         integrityScore: score,
         criticalEvents: proctorRows.filter(
           (e) => e.attemptId === a.id && e.severity === "critical",
@@ -256,7 +266,9 @@ export type BlindQueue = {
 };
 
 /** Aggregate review queue plus per-item analytics across the whole bank. */
-export async function loadBlindQueue(): Promise<BlindQueue> {
+export async function loadBlindQueue(
+  viewerRole: "candidate" | "recruiter" | "assessor" | "admin",
+): Promise<BlindQueue> {
   const [attemptRows, userRows, assessmentRows, responseRows, questionRows] =
     await Promise.all([
       db.select().from(attempts),
@@ -282,7 +294,11 @@ export async function loadBlindQueue(): Promise<BlindQueue> {
 
   const queue = submitted.map((a, i) => ({
     candidateRef: `${String(i + 1).padStart(3, "0")}-${shortRef(a.id)}`,
-    candidateName: nameById.get(a.candidateId) ?? "Unknown",
+    // Blanket-redact the name unless the viewer is an admin. The UI already
+    // hides it during blind review, but this value is also serialised into the
+    // RSC payload and would otherwise be readable in view-source — which would
+    // defeat blind review entirely.
+    candidateName: viewerRole === "admin" ? (nameById.get(a.candidateId) ?? "Unknown") : "—",
     attemptId: a.id,
     assessmentTitle: titleById.get(a.assessmentId) ?? "—",
     score: a.score,

@@ -15,7 +15,7 @@ const adminNav = [
 ];
 export default async function AdminPage() {
   const user = await requirePageUser("recruiter", "assessor", "admin");
-  const data = await loadRecruiterDashboard();
+  const data = await loadRecruiterDashboard(user.role);
   return (
     <main className="min-h-dvh">
       <TopBar name={user.fullName} role={user.role} nav={adminNav} />

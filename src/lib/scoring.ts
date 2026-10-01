@@ -34,11 +34,28 @@ export function gradeObjective(
   }
 
   if (question.type === "multiple_choice" || question.type === "multi_select") {
-    const expectedIds = Array.isArray(expected) ? expected : [expected];
-    const givenIds = Array.isArray(answer) ? answer : answer ? [answer] : [];
+    // Option-based items only ever store string IDs. A coding answer (an object)
+    // would be meaningless here, so filter it out rather than letting it reach
+    // an equality check against an option id.
+    const idsOnly = (v: unknown): string[] => {
+      if (Array.isArray(v)) return v.filter((x): x is string => typeof x === "string");
+      return typeof v === "string" ? [v] : [];
+    };
+
+    const expectedIds = idsOnly(expected);
+    const givenIds = idsOnly(answer);
 
     if (question.type === "multi_select") {
-      // Partial credit: 1 point per correct pick, minus 1 per wrong pick, floored at 0
+      // Partial credit: 1 point per correct pick, minus 1 per wrong pick, floored
+      // at 0. If nothing is expected, there is nothing to earn and nothing to
+      // divide by.
+      if (expectedIds.length === 0) {
+        return {
+          isCorrect: null,
+          awardedScore: null,
+          needsHumanReview: true,
+        };
+      }
       const correctPicked = givenIds.filter((id) => expectedIds.includes(id)).length;
       const wrongPicked = givenIds.filter((id) => !expectedIds.includes(id)).length;
       const credit = Math.max(0, (correctPicked - wrongPicked) / expectedIds.length);

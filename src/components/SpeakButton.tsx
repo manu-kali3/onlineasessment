@@ -42,9 +42,16 @@ export function SpeakButton({
   }, []);
 
   useEffect(() => {
-    if (typeof window !== "undefined" && "speechSynthesis" in window) {
-      window.speechSynthesis.onend = () => setPlaying(false);
-    }
+    if (!speechSupported()) return;
+    // `onend` is a standard property but is missing from some TS DOM lib
+    // versions, so assign through a narrow local type.
+    const synth = window.speechSynthesis as SpeechSynthesis & {
+      onend?: (() => void) | null;
+    };
+    synth.onend = () => setPlaying(false);
+    return () => {
+      window.speechSynthesis.cancel();
+    };
   }, []);
 
   useEffect(() => {
