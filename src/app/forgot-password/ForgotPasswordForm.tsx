@@ -40,7 +40,7 @@ export default function ForgotPasswordForm() {
       <h1 className="text-xl font-bold tracking-tight">Reset your password</h1>
       <p className="mt-1 text-sm text-[var(--muted)]">
         Enter the email on your account and we will send a link to choose a new
-        password.
+        password. The link expires in 60 minutes and works only once.
       </p>
 
       {message ? (
@@ -65,6 +65,32 @@ export default function ForgotPasswordForm() {
           <Link href="/login" className="btn btn-primary mt-5 w-full">
             Back to sign in
           </Link>
+
+          {/*
+            The endpoint deliberately does not say whether the address exists,
+            which is right for privacy but leaves a real user with no next step
+            when nothing arrives. Offer the two things that can actually help.
+          */}
+          <div className="mt-5 rounded-lg border border-[var(--line)] p-4">
+            <p className="text-sm font-semibold">Nothing arrived?</p>
+            <ul className="mt-2 space-y-1.5 text-sm text-[var(--muted)]">
+              <li>Check spam, or wait a minute and request it again.</li>
+              <li>
+                If you never created an account,{" "}
+                <Link
+                  href="/register"
+                  className="font-semibold text-[var(--accent)]"
+                >
+                  Register here
+                </Link>{" "}
+                instead.
+              </li>
+              <li>
+                If you are using an address from an invitation, sign in with that
+                exact address.
+              </li>
+            </ul>
+          </div>
         </>
       ) : (
         <>

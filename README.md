@@ -79,6 +79,7 @@ If demo accounts were ever seeded against a real database, remove them with
 | `npm run smoke:login-page` | Assert the login page exposes no demo credentials |
 | `npm run smoke:resend` | Resend cooldown, token rotation, and enumeration resistance |
 | `npm run smoke:diagnose` | Registration/resend status reporting and rate limits |
+| `npm run db:prune-unverified` | Delete unverified accounts left by test runs |
 
 The smoke scripts expect a server on `$BASE` (default `http://localhost:3120`),
 and several sign in as the seeded demo accounts, so run `SEED_DEMO=1 npm run
@@ -272,6 +273,22 @@ most recent email works and an intercepted older link is useless. The resend
 button appears in the two places a candidate gets stuck: the register
 confirmation screen, and the sign-in page for an account that exists but is
 still unverified.
+
+### Seeded demo accounts cannot receive email
+
+The seeded accounts use the `@portal.test` domain, which is reserved and does not
+resolve. Any verification or reset email addressed to them is accepted by the
+mail provider and then bounces or disappears, so an email-dependent flow cannot
+be exercised with them. Use a real address — register one — when testing
+verification or password reset. `npm run db:prune-unverified` clears the
+unverified accounts that leave behind.
+
+**Forgot-password stays generic on purpose.** It returns the same message whether
+or not the address exists, which is the standard guidance for reset endpoints
+because it is the one most often used to enumerate accounts. The trade-off is
+that a user who mistypes their address gets no signal, so the page now spells
+out the two things that actually help: check spam, or register if they never had
+an account.
 
 ## Security notes
 

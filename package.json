@@ -16,6 +16,7 @@
     "db:revoke-demo": "node scripts/revoke-demo.cjs --yes",
     "db:revoke-demo:dry-run": "node scripts/revoke-demo.cjs",
     "db:create-admin": "node scripts/create-admin.cjs",
+    "db:prune-unverified": "node scripts/prune-unverified.cjs",
     "smoke": "node scripts/smoke.cjs",
     "smoke:flow": "node scripts/smoke-flow.cjs",
     "smoke:reset": "node scripts/reset-flow-fixture.cjs",
