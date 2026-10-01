@@ -99,6 +99,7 @@ If demo accounts were ever seeded against a real database, remove them with
 | `npm run db:migrate` | Apply generated migration files |
 | `npm run db:studio` | Browse data in Drizzle Studio |
 | `npm run db:seed` | Idempotent content seed (competencies, questions, assessments) |
+| `npm run db:seed:webdev` | Add the Web Development Fundamentals pack and invite every candidate |
 | `npm run db:create-admin` | Create a real admin from `ADMIN_EMAIL` / `ADMIN_PASSWORD` |
 | `npm run db:revoke-demo` | Delete the seeded demo accounts and their attempts |
 | `npm run smoke` | Auth, role separation, and blind-review checks against a running server |
@@ -325,6 +326,23 @@ because it is the one most often used to enumerate accounts. The trade-off is
 that a user who mistypes their address gets no signal, so the page now spells
 out the two things that actually help: check spam, or register if they never had
 an account.
+
+## Web Development Fundamentals
+
+`npm run db:seed:webdev` adds a nine-item assessment covering HTML fundamentals,
+CSS layout, JavaScript semantics, and web architecture. It is untimed and
+unproctored, and every candidate account is invited automatically. Re-running is
+safe: existing rows are left alone and only missing invitations are added.
+
+The supplied content contained one interactive request — a model showing how
+padding, border, and margin change an element's footprint. That is implemented as
+a **coding** item (`totalWidth(box)`) with three test cases rather than as static
+prose, since the runner already renders a code editor for `coding` questions.
+
+All nine items are written responses with rubrics, so they auto-grade to nothing:
+a submitted attempt stays `submitted` until an assessor scores it. That is the
+known grading-UI gap, not a defect in the content. New candidates created after
+the seed have to be invited separately, or re-run the seed.
 
 ## Security notes
 
