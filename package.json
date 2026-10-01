@@ -13,11 +13,15 @@
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
     "db:seed": "tsx scripts/seed.ts",
+    "db:revoke-demo": "node scripts/revoke-demo.cjs --yes",
+    "db:revoke-demo:dry-run": "node scripts/revoke-demo.cjs",
+    "db:create-admin": "node scripts/create-admin.cjs",
     "smoke": "node scripts/smoke.cjs",
     "smoke:flow": "node scripts/smoke-flow.cjs",
     "smoke:reset": "node scripts/reset-flow-fixture.cjs",
     "smoke:auth": "node scripts/smoke-auth.cjs",
     "smoke:reset-password": "node scripts/smoke-reset.cjs",
+    "smoke:login-page": "node scripts/smoke-login-page.cjs",
     "email:test": "node scripts/send-test-email.cjs"
   },
   "dependencies": {

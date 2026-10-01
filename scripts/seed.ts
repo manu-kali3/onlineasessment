@@ -15,8 +15,26 @@ import {
 
 const hash = bcrypt.hashSync("Passw0rd!", 12);
 
+/**
+ * Demo accounts use a published password, so they must never exist on a public
+ * deployment. Seeding them is opt-in: pass SEED_DEMO=1, or run
+ * `npm run db:revoke-demo` to remove any that were created earlier.
+ */
+const withDemoUsers =
+  process.env.SEED_DEMO === "1" || process.env.SEED_DEMO === "true";
+
+if (!withDemoUsers) {
+  console.log(
+    "Demo accounts are skipped by default because their password is published.",
+  );
+}
+
 async function main() {
-  console.log("Seeding...");
+  console.log(
+    withDemoUsers
+      ? "Seeding (including demo accounts)..."
+      : "Seeding content only — set SEED_DEMO=1 to add demo accounts.",
+  );
 
   await db
     .insert(competencies)
@@ -184,6 +202,7 @@ async function main() {
     ])
     .onConflictDoNothing();
 
+  if (withDemoUsers) {
   await db
     .insert(users)
     .values([
@@ -241,6 +260,7 @@ async function main() {
       },
     ])
     .onConflictDoNothing();
+}
 
   // Invitations drive the candidate dashboard; attempts hang off them.
   //
@@ -249,6 +269,10 @@ async function main() {
   // on every run instead of skipping.
   const in7Days = new Date(Date.now() + 7 * 24 * 60 * 60_000);
 
+  // Invitations and attempts reference the demo candidates, so they are skipped
+  // alongside them. Question bank, assessments, and competencies are seeded
+  // either way, since those are not account data.
+  if (withDemoUsers) {
   await db
     .insert(assessmentInvitations)
     .values([
@@ -321,6 +345,7 @@ async function main() {
       },
     ])
     .onConflictDoNothing();
+  }
 
   await db
     .insert(integrations)
@@ -344,11 +369,23 @@ async function main() {
     .onConflictDoNothing();
 
   console.log("Done.");
-  console.log("Logins (password: Passw0rd!):");
-  console.log("  admin@portal.test      admin");
-  console.log("  recruiter@portal.test  recruiter");
-  console.log("  assessor@portal.test   assessor");
-  console.log("  candidate@portal.test  candidate");
+  if (withDemoUsers) {
+    console.log("Demo accounts created (password: Passw0rd!):");
+    console.log("  admin@portal.test      admin");
+    console.log("  recruiter@portal.test  recruiter");
+    console.log("  assessor@portal.test   assessor");
+    console.log("  candidate@portal.test  candidate");
+    console.log("  jordan@portal.test     candidate");
+    console.log("  priya@portal.test      candidate");
+    console.log("");
+    console.log(
+      "These use a published password. Run `npm run db:revoke-demo` before going live.",
+    );
+  } else {
+    console.log(
+      "No demo accounts. Create your first admin with `npm run db:create-admin`.",
+    );
+  }
 }
 
 main()

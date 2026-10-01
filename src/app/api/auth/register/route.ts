@@ -7,7 +7,7 @@ import { hashPassword } from "@/lib/auth";
 import { databaseUnavailable } from "@/lib/api-guard";
 import { checkPassword } from "@/lib/password";
 import { sendVerificationEmail } from "@/lib/email";
-import { env } from "@/lib/env";
+import { resolveAppUrl } from "@/lib/app-url";
 import { generateToken, hashToken, TOKEN_TTL_MIN } from "@/lib/tokens";
 import { newId } from "@/lib/id";
 
@@ -111,7 +111,7 @@ export async function POST(req: Request) {
     expiresAt: new Date(Date.now() + TOKEN_TTL_MIN * 60_000),
   });
 
-  const verifyUrl = `${env.NEXT_PUBLIC_APP_URL}/verify-email?token=${encodeURIComponent(token)}`;
+  const verifyUrl = `${await resolveAppUrl()}/verify-email?token=${encodeURIComponent(token)}`;
 
   const result = await sendVerificationEmail({
     to: email,

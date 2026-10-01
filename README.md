@@ -22,15 +22,26 @@ Built with **Next.js 16 (App Router) + React 19**, **Postgres on Neon**, and
 npm install
 cp .env.example .env.local     # put your DATABASE_URL here
 npm run db:push                # create tables from the schema
-npm run db:seed                # demo users, questions, assessments, attempts
+npm run db:seed                # questions, assessments, competencies
 npm run dev
 ```
 
 Open http://localhost:3000.
 
-### Demo accounts
+### Accounts
 
-All use the password `Passw0rd!`.
+`db:seed` deliberately creates **no accounts** — the demo users share a published
+password, so they must never exist on a public deployment. Create a real admin
+once, then add recruiters from the admin area:
+
+```bash
+$env:ADMIN_EMAIL='you@yourdomain.com'
+$env:ADMIN_PASSWORD='<12+ characters>'
+npm run db:create-admin
+```
+
+For local development you can opt into the demo accounts explicitly with
+`SEED_DEMO=1 npm run db:seed`. They all use the password `Passw0rd!`:
 
 | Email | Role | Lands on |
 | --- | --- | --- |
@@ -38,6 +49,9 @@ All use the password `Passw0rd!`.
 | `recruiter@portal.test` | recruiter | `/admin` |
 | `assessor@portal.test` | assessor | `/admin` |
 | `admin@portal.test` | admin | `/admin` |
+
+If demo accounts were ever seeded against a real database, remove them with
+`npm run db:revoke-demo` (preview it first with `db:revoke-demo:dry-run`).
 
 ## Scripts
 
@@ -51,21 +65,28 @@ All use the password `Passw0rd!`.
 | `npm run db:push` | Push schema straight to the database (no migration files) |
 | `npm run db:migrate` | Apply generated migration files |
 | `npm run db:studio` | Browse data in Drizzle Studio |
-| `npm run db:seed` | Idempotent demo data |
+| `npm run db:seed` | Idempotent content seed (competencies, questions, assessments) |
+| `npm run db:create-admin` | Create a real admin from `ADMIN_EMAIL` / `ADMIN_PASSWORD` |
+| `npm run db:revoke-demo` | Delete the seeded demo accounts and their attempts |
 | `npm run smoke` | Auth, role separation, and blind-review checks against a running server |
 | `npm run smoke:flow` | Full candidate journey: start, autosave, submit, score |
 | `npm run smoke:auth` | Register, verification gate, and enumeration resistance |
 | `npm run smoke:reset-password` | Reset success path, single-use tokens, session revocation |
 | `npm run smoke:reset` | Reset the fixture the flow test consumes |
 | `npm run email:test you@example.com` | Send a real email through Resend |
+| `npm run smoke:login-page` | Assert the login page exposes no demo credentials |
+
+The smoke scripts expect a server on `$BASE` (default `http://localhost:3120`),
+and several sign in as the seeded demo accounts, so run `SEED_DEMO=1 npm run
+db:seed` first if you are starting from a clean database.
 
 `db:seed` uses `onConflictDoNothing` throughout, so it is safe to re-run. The
 invitation tokens are deterministic for the same reason: the unique index is on
 `token`, so random tokens would append duplicates each run.
 
-The smoke scripts expect a server on `$BASE` (default `http://localhost:3120`),
-so run `npm start -- -p 3120` first. `smoke:flow` consumes a seeded attempt and
-submits it, so re-run `smoke:reset` before running it again.
+The smoke scripts expect a server on `$BASE` (default `http://localhost:3120`).
+`smoke:flow` consumes a seeded attempt and submits it, so re-run
+`smoke:reset` before running it again.
 
 ## Data model
 
@@ -184,6 +205,14 @@ so the flow stays completable locally. Note that until a sending domain is
 verified in the Resend dashboard, mail can only be delivered to Resend's own
 test addresses (`delivered@resend.dev`, `onboarding@resend.dev`) — `example.com`
 is rejected outright.
+
+**Emailed links resolve against the real deployment, never localhost.**
+`resolveAppUrl()` prefers an explicitly configured `NEXT_PUBLIC_APP_URL`, but
+treats a localhost value as untrustworthy and falls back to `VERCEL_URL` and
+then the incoming `Host` / `X-Forwarded-Proto` headers. A stale local value left
+in the environment would otherwise send every candidate a dead link. Verified by
+pointing the app at `http://localhost:3000` and confirming the emitted link
+followed the request host instead.
 
 **Tokens** are 256 bits of randomness, of which only a SHA-256 digest is stored.
 A database leak therefore cannot be replayed against the live service. Digests

@@ -5,7 +5,7 @@ import { db } from "@/db";
 import { authTokens, users } from "@/db/schema";
 import { databaseUnavailable } from "@/lib/api-guard";
 import { sendPasswordResetEmail } from "@/lib/email";
-import { env } from "@/lib/env";
+import { resolveAppUrl } from "@/lib/app-url";
 import { generateToken, hashToken, TOKEN_TTL_MIN } from "@/lib/tokens";
 import { newId } from "@/lib/id";
 
@@ -74,7 +74,7 @@ export async function POST(req: Request) {
     expiresAt: new Date(Date.now() + TOKEN_TTL_MIN * 60_000),
   });
 
-  const resetUrl = `${env.NEXT_PUBLIC_APP_URL}/reset-password?token=${encodeURIComponent(token)}`;
+  const resetUrl = `${await resolveAppUrl()}/reset-password?token=${encodeURIComponent(token)}`;
 
   const result = await sendPasswordResetEmail({
     to: user.email,

@@ -4,19 +4,12 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 
-const demoAccounts = [
-  { label: "Candidate", email: "candidate@portal.test" },
-  { label: "Recruiter", email: "recruiter@portal.test" },
-  { label: "Assessor", email: "assessor@portal.test" },
-  { label: "Admin", email: "admin@portal.test" },
-];
-
 export default function LoginForm() {
   const router = useRouter();
   const params = useSearchParams();
   const justReset = params.get("reset") === "1";
-  const [email, setEmail] = useState("candidate@portal.test");
-  const [password, setPassword] = useState("Passw0rd!");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(
     justReset ? "Password updated. Sign in with your new password." : null,
@@ -52,7 +45,7 @@ export default function LoginForm() {
     <form onSubmit={submit} className="panel w-full max-w-sm p-6">
       <h1 className="text-xl font-bold tracking-tight">Sign in</h1>
       <p className="mt-1 text-sm text-[var(--muted)]">
-        Use one of the seeded accounts below.
+        Enter the email address your invitation was sent to.
       </p>
 
       <div className="mt-5 space-y-4">
@@ -118,28 +111,6 @@ export default function LoginForm() {
         >
           Create an account
         </Link>
-      </div>
-
-      <div className="mt-6 border-t border-[var(--line)] pt-4">
-        <p className="label">Quick fill</p>
-        <div className="flex flex-wrap gap-2">
-          {demoAccounts.map((a) => (
-            <button
-              key={a.email}
-              type="button"
-              className="btn btn-ghost !py-1 !px-2 !text-xs"
-              onClick={() => {
-                setEmail(a.email);
-                setPassword("Passw0rd!");
-              }}
-            >
-              {a.label}
-            </button>
-          ))}
-        </div>
-        <p className="mt-3 text-xs text-[var(--muted)]">
-          All demo passwords: <code className="font-semibold">Passw0rd!</code>
-        </p>
       </div>
     </form>
   );
