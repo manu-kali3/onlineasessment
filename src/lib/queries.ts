@@ -1,4 +1,4 @@
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import {
   assessmentInvitations,
@@ -12,7 +12,6 @@ import {
   responses,
   users,
 } from "@/db/schema";
-import { getCurrentUser } from "@/lib/auth";
 import { computeIntegrityScore } from "@/lib/scoring";
 
 export type DashboardData = {

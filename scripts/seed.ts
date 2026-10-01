@@ -4,6 +4,7 @@ import { db } from "../src/db";
 import {
   assessments,
   assessmentCompetencies,
+  assessmentInvitations,
   assessmentQuestions,
   attempts,
   competencies,
@@ -11,13 +12,14 @@ import {
   questions,
   users,
 } from "../src/db/schema";
+import { newToken } from "../src/lib/id";
 
 const hash = bcrypt.hashSync("Passw0rd!", 12);
 
 async function main() {
   console.log("Seeding...");
 
-  const [deComp, problemSolving, comms, leadership] = await db
+  await db
     .insert(competencies)
     .values([
       { id: "cmp-digitacy", name: "Digital Literacy", description: "Comfort with digital tooling and interfaces." },
@@ -25,8 +27,7 @@ async function main() {
       { id: "cmp-comms", name: "Communication", description: "Clarity, tone, and audience awareness." },
       { id: "cmp-collab", name: "Collaboration", description: "Team orientation and conflict handling." },
     ])
-    .onConflictDoNothing()
-    .returning();
+    .onConflictDoNothing();
 
   const seedQuestions = [
     {
@@ -233,17 +234,60 @@ async function main() {
     ])
     .onConflictDoNothing();
 
+  // Invitations drive the candidate dashboard; attempts hang off them.
+  const in7Days = new Date(Date.now() + 7 * 24 * 60 * 60_000);
+
+  await db
+    .insert(assessmentInvitations)
+    .values([
+      {
+        id: "inv-1",
+        assessmentId: "asmt-core-b",
+        candidateId: "usr-cand-1",
+        token: newToken(),
+        expiresAt: in7Days,
+        status: "invited",
+      },
+      {
+        id: "inv-2",
+        assessmentId: "asmt-core-b",
+        candidateId: "usr-cand-2",
+        token: newToken(),
+        expiresAt: in7Days,
+        status: "in_progress",
+      },
+      {
+        id: "inv-3",
+        assessmentId: "asmt-core-b",
+        candidateId: "usr-cand-3",
+        token: newToken(),
+        expiresAt: in7Days,
+        status: "submitted",
+      },
+      {
+        id: "inv-4",
+        assessmentId: "asmt-sji-lead",
+        candidateId: "usr-cand-1",
+        token: newToken(),
+        expiresAt: in7Days,
+        status: "invited",
+      },
+    ])
+    .onConflictDoNothing();
+
   await db
     .insert(attempts)
     .values([
       {
         id: "att-1",
+        invitationId: "inv-1",
         assessmentId: "asmt-core-b",
         candidateId: "usr-cand-1",
         status: "invited",
       },
       {
         id: "att-2",
+        invitationId: "inv-2",
         assessmentId: "asmt-core-b",
         candidateId: "usr-cand-2",
         status: "in_progress",
@@ -251,14 +295,17 @@ async function main() {
       },
       {
         id: "att-3",
+        invitationId: "inv-3",
         assessmentId: "asmt-core-b",
         candidateId: "usr-cand-3",
         status: "submitted",
         startedAt: new Date(Date.now() - 52 * 60_000),
         submittedAt: new Date(Date.now() - 14 * 60_000),
         score: 74.5,
+        percentile: 68.4,
         passed: true,
         competencyScores: { "cmp-problem": 80, "cmp-digitacy": 66, "cmp-collab": 77 },
+        integrityScore: 100,
       },
     ])
     .onConflictDoNothing();

@@ -2,7 +2,7 @@
 
 # dependencies
 /node_modules
-/install-deps.log
+/install*.log
 /.pnp
 .pnp.*
 .yarn/*
