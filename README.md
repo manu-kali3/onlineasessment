@@ -413,6 +413,21 @@ account id and is not in the API credentials. Until it is set, checkout is
 hidden and the paywall names the missing variable instead of offering a payment
 that cannot complete.
 
+### Granting access without payment
+
+For the operator's own accounts and test users, access can be granted directly:
+
+```bash
+npm run db:grant-access you@example.com      # grant
+npm run db:grant-access -- --revoke you@example.com
+npm run db:set-password you@example.com '<12+ chars>'
+```
+
+A manual grant writes a `payments` row with `provider = 'manual'` and a payload
+naming the reason, so access that did not come from money is distinguishable in
+reporting rather than inflating revenue. `set-password` bumps `sessionVersion`,
+so changing a password signs out existing sessions as it should.
+
 ## Security notes
 
 - `.env*` is gitignored; only `.env.example` is tracked. Keep the Neon URL and
