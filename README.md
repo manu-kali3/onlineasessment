@@ -405,13 +405,30 @@ reported amount against the recorded total — a partial or tampered callback is
 refused rather than granting access. The client polls `/api/payments/status`
 until access appears.
 
-### Not wired yet
+### PayHero endpoints
 
-`PAYHERO_CHANNEL_ID` is not set. PayHero's STK push requires the channel id of
-the specific paybill or till that receives the money, which is distinct from the
-account id and is not in the API credentials. Until it is set, checkout is
-hidden and the paywall names the missing variable instead of offering a payment
-that cannot complete.
+Taken from PayHero's own PHP SDK rather than a blog post, because a secondary
+write-up gave `POST /api/v2/payments/initiate-stk-push`, which does not exist —
+every call returned `Endpoint not found` and the failure looked identical to bad
+credentials. The real paths are:
+
+| Operation | Request |
+| --- | --- |
+| STK push | `POST https://backend.payhero.co.ke/api/v2/payments` |
+| Transaction status | `GET /api/v2/transaction-status?reference=REF` |
+| Account transactions | `GET /api/v2/transactions?page=N&per_page=M` |
+| Service wallet balance | `GET /api/v2/wallets?wallet_type=service_wallet` |
+
+STK body: `amount`, `phone_number`, `channel_id`, `external_reference`,
+`callback_url`, `provider: "m-pesa"`.
+
+### Operational caveat: the service wallet
+
+The service wallet on account 8685 holds **50 KES and is in `PENDING` status**.
+PayHero deducts its per-transaction service charge from this wallet, so it needs
+topping up before real traffic. Check it with `npm run payments:check`, which
+also lists recent transactions — useful for reconciling callbacks against the
+provider ledger.
 
 ### Granting access without payment
 

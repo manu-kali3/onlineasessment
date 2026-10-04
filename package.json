@@ -22,6 +22,7 @@
     "db:prune-unverified": "node scripts/prune-unverified.cjs",
     "db:grant-access": "node scripts/grant-access.cjs",
     "db:set-password": "node scripts/set-password.cjs",
+    "payments:check": "node scripts/check-money.cjs",
     "smoke": "node scripts/smoke.cjs",
     "smoke:flow": "node scripts/smoke-flow.cjs",
     "smoke:reset": "node scripts/reset-flow-fixture.cjs",

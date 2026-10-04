@@ -3,8 +3,13 @@ import { env } from "./env";
 /**
  * PayHero API client (M-Pesa STK push).
  *
- * Docs: https://docs.payhero.co.ke
- * Base:  https://backend.payhero.co.ke/api/v2
+ * Base and paths taken from PayHero's own PHP SDK, not from blog posts — an
+ * earlier version used `/payments/initiate-stk-push` from a secondary write-up
+ * and every call came back "Endpoint not found". The real shapes are:
+ *
+ *   POST /api/v2/payments                          — STK push
+ *   GET  /api/v2/transaction-status?reference=REF  — reconcile a transaction
+ *   GET  /api/v2/wallets?wallet_type=payment_wallet
  *
  * Secrets are read from the server environment only and are never sent to the
  * browser: the token is minted per request from the username and password so it
@@ -77,7 +82,7 @@ export async function initiateStkPush(
 
   let res: Response;
   try {
-    res = await fetch(`${BASE}/payments/initiate-stk-push`, {
+    res = await fetch(`${BASE}/payments`, {
       method: "POST",
       headers: {
         Authorization: authHeader(),
@@ -137,7 +142,7 @@ export async function getTransactionStatus(
 
   try {
     const res = await fetch(
-      `${BASE}/payments/transaction/${encodeURIComponent(reference)}`,
+      `${BASE}/transaction-status?reference=${encodeURIComponent(reference)}`,
       {
         headers: {
           Authorization: authHeader(),
