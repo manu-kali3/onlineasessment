@@ -71,6 +71,12 @@ export const tokenPurpose = pgEnum("token_purpose", [
   "password_reset",
 ]);
 
+export const paymentStatus = pgEnum("payment_status", [
+  "pending",
+  "completed",
+  "failed",
+]);
+
 export const integrationProvider = pgEnum("integration_provider", [
   "workday",
   "greenhouse",
@@ -102,6 +108,12 @@ export const users = pgTable(
     emailVerified: boolean("email_verified").notNull().default(false),
     /** Bumped on password change so every existing session cookie stops working. */
     sessionVersion: integer("session_version").notNull().default(1),
+    /**
+     * Set once a completed payment is recorded, granting permanent access.
+     * Kept on the user rather than derived from the payments table so the access
+     * check on every request is a column read we are already making.
+     */
+    accessGrantedAt: timestamp("access_granted_at", { withTimezone: true }),
     accessibilityProfile: jsonb("accessibility_profile")
       .$type<{
         textToSpeech?: boolean;
@@ -146,6 +158,56 @@ export const authTokens = pgTable(
     uniqueIndex("auth_tokens_hash_idx").on(t.tokenHash),
     index("auth_tokens_user_idx").on(t.userId),
     index("auth_tokens_expiry_idx").on(t.expiresAt),
+  ],
+);
+
+/* ------------------------------------------------------------------ */
+/* Payments                                                            */
+/* ------------------------------------------------------------------ */
+
+/**
+ * One row per checkout attempt.
+ *
+ * Amounts are stored as integer minor units (cents) rather than floats, because
+ * a float cannot represent 10.50 exactly and reconciliation against a provider
+ * ledger will eventually disagree by a cent. The VAT rate is stored alongside
+ * the computed VAT amount so a later price change cannot retroactively alter
+ * what was actually charged.
+ */
+export const payments = pgTable(
+  "payments",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    provider: text("provider").notNull().default("payhero"),
+    status: paymentStatus("status").notNull().default("pending"),
+    /** Net charge before VAT, in minor units. */
+    amountMinor: integer("amount_minor").notNull(),
+    /** VAT in minor units. */
+    vatMinor: integer("vat_minor").notNull(),
+    /** amountMinor + vatMinor — what the customer was asked to pay. */
+    totalMinor: integer("total_minor").notNull(),
+    currency: text("currency").notNull().default("KES"),
+    /** The reference we send to the provider and receive back on the callback. */
+    externalReference: text("external_reference").notNull(),
+    /** The provider's own transaction id, once known. */
+    providerReference: text("provider_reference"),
+    channelId: text("channel_id"),
+    phoneNumber: text("phone_number"),
+    /** Raw provider payload, kept for reconciliation and disputes. */
+    rawPayload: jsonb("raw_payload").$type<Record<string, unknown>>(),
+    failureReason: text("failure_reason"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+  },
+  (t) => [
+    uniqueIndex("payments_external_reference_idx").on(t.externalReference),
+    index("payments_user_idx").on(t.userId),
+    index("payments_status_idx").on(t.status),
   ],
 );
 

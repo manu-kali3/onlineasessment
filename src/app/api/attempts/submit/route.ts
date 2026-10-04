@@ -13,6 +13,7 @@ import {
 } from "@/db/schema";
 import { getCurrentUser } from "@/lib/auth";
 import { databaseUnavailable } from "@/lib/api-guard";
+import { paymentDenied } from "@/lib/api-paywall";
 import {
   computeCompetencyScores,
   computeOverallScore,
@@ -33,6 +34,9 @@ const bodySchema = z.object({
 export async function POST(req: Request) {
   const unavailable = databaseUnavailable();
   if (unavailable) return unavailable;
+
+  const denied = await paymentDenied();
+  if (denied) return denied;
 
   const user = await getCurrentUser();
   if (!user || user.role !== "candidate") {

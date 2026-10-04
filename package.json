@@ -33,6 +33,7 @@
     "smoke:webdev": "node scripts/smoke-webdev.cjs",
     "smoke:ai": "node scripts/smoke-ai.cjs",
     "smoke:mobile": "node scripts/smoke-mobile.cjs",
+    "smoke:paywall": "node scripts/smoke-paywall.cjs",
     "email:test": "node scripts/send-test-email.cjs",
     "email:diagnose": "node scripts/diagnose-email.cjs",
     "email:prove": "node scripts/prove-delivery.cjs"

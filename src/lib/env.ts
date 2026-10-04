@@ -41,6 +41,16 @@ const envSchema = z.object({
   RESEND_FROM: z
     .string()
     .default("Assessment Center <no-reply@brevansoftwares.co.ke>"),
+  /** PayHero API credentials. Server-only; never exposed to the browser. */
+  PAYHERO_USERNAME: z.string().optional(),
+  PAYHERO_PASSWORD: z.string().optional(),
+  PAYHERO_ACCOUNT_ID: z.string().optional(),
+  /**
+   * The PayHero channel that routes money to a specific paybill/till. Required
+   * for an STK push but not for the rest of the portal, so it stays optional
+   * here rather than breaking every other route when it is absent.
+   */
+  PAYHERO_CHANNEL_ID: z.string().optional(),
 });
 
 const parsed = envSchema.safeParse(process.env);

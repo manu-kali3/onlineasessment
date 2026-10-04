@@ -377,6 +377,42 @@ assessment tables are wrapped in `TableWrap`, a focusable `role="region"`
 container that scrolls horizontally instead of pushing the page sideways — six
 columns do not fit a phone.
 
+## Payments and site access
+
+Access costs **KES 1,000 plus KES 50 VAT = KES 1,050**, paid once through
+M-Pesa via PayHero, and is then permanent. Every signed-in user is gated,
+including staff.
+
+**The gate is server-side, not an overlay.** This is the important part: a
+client-side overlay is defeated by disabling JavaScript or reading
+view-source, so it protects nothing. `requirePageUser` checks
+`users.accessGrantedAt` and a locked page is never rendered — the assessment
+titles do not appear in the HTML at all. The four assessment APIs return
+`402 PAYMENT_REQUIRED` independently, because pages can be bypassed by calling
+an endpoint directly. `smoke:paywall` asserts the absence of content in the
+response, which is the check that would fail if this regressed to an overlay.
+
+Prices are integer minor units, and the total is computed on the server in
+`pricing.ts` — a client-supplied amount is never trusted. VAT is stored per
+payment row so a later price change cannot rewrite what was already charged.
+
+**Completion comes from the webhook, never from the request that started it.**
+An STK push returning 2xx only means the prompt was accepted; the customer still
+has to authorise on their handset. The webhook requires the PayHero
+`Authorization` header (failing closed if `PAYHERO_AUTH_TOKEN` is unset), is
+idempotent because PayHero retries until it sees a 2xx, and compares the
+reported amount against the recorded total — a partial or tampered callback is
+refused rather than granting access. The client polls `/api/payments/status`
+until access appears.
+
+### Not wired yet
+
+`PAYHERO_CHANNEL_ID` is not set. PayHero's STK push requires the channel id of
+the specific paybill or till that receives the money, which is distinct from the
+account id and is not in the API credentials. Until it is set, checkout is
+hidden and the paywall names the missing variable instead of offering a payment
+that cannot complete.
+
 ## Security notes
 
 - `.env*` is gitignored; only `.env.example` is tracked. Keep the Neon URL and
