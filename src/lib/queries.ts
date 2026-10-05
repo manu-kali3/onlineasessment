@@ -180,6 +180,8 @@ export type InvitationWithMeta = {
     description: string | null;
     durationMin: number;
     requireProctoring: boolean;
+    priceMinor: number;
+    vatMinor: number;
   };
   attemptId: string | null;
   attemptStatus: string | null;
@@ -201,6 +203,8 @@ export async function loadCandidateInvitations(candidateId: string) {
       description: assessments.description,
       durationMin: assessments.durationMin,
       requireProctoring: assessments.requireProctoring,
+      priceMinor: assessments.priceMinor,
+      vatMinor: assessments.vatMinor,
     })
     .from(assessmentInvitations)
     .innerJoin(assessments, eq(assessments.id, assessmentInvitations.assessmentId))
@@ -228,6 +232,8 @@ export async function loadCandidateInvitations(candidateId: string) {
         description: r.description,
         durationMin: r.durationMin,
         requireProctoring: r.requireProctoring,
+        priceMinor: r.priceMinor,
+        vatMinor: r.vatMinor,
       },
       attemptId: attempt?.id ?? null,
       attemptStatus: attempt?.status ?? null,

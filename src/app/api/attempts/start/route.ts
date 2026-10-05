@@ -6,7 +6,7 @@ import { assessments, assessmentInvitations, attempts } from "@/db/schema";
 import { getCurrentUser } from "@/lib/auth";
 import { newId } from "@/lib/id";
 import { databaseUnavailable } from "@/lib/api-guard";
-import { paymentDenied } from "@/lib/api-paywall";
+
 
 const bodySchema = z.object({
   invitationId: z.string().min(1),
@@ -19,10 +19,6 @@ const bodySchema = z.object({
 export async function POST(req: Request) {
   const unavailable = databaseUnavailable();
   if (unavailable) return unavailable;
-
-  const denied = await paymentDenied();
-  if (denied) return denied;
-
   const user = await getCurrentUser();
   if (!user || user.role !== "candidate") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

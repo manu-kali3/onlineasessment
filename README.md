@@ -379,9 +379,25 @@ columns do not fit a phone.
 
 ## Payments and site access
 
-Access costs **KES 1,000 plus KES 50 VAT = KES 1,050**, paid once through
-M-Pesa via PayHero, and is then permanent. Every signed-in user is gated,
-including staff.
+Access is **per course**, not per site. Each course has a `priceMinor` of zero
+(free) or a positive amount, and a candidate pays only for the course they enrol
+in — free courses start immediately, paid ones route to a per-course checkout.
+This replaced the earlier global sign-in paywall, which charged everyone once
+and unlocked everything.
+
+A course's price is set from **Assessments → Pricing** in the admin area, and
+questions are added from **Assessments → Add a question**. Both write through
+`/api/admin/*` routes; the question form creates the bank row and the assessment
+link in one step, and derives position from the current length so there is no
+off-by-one or duplicate-position bug.
+
+The checkout reads the price from the course row, never from the request, so a
+client cannot pay less than a course costs. Amounts are integer minor units and
+VAT is recorded per payment row.
+
+The test runner gates on `canAccessCourse` server-side, so hiding an overlay or
+disabling JavaScript does not help — an unpaid user is redirected to
+`/paywall?course=<id>` and the runner is never rendered.
 
 **The gate is server-side, not an overlay.** This is the important part: a
 client-side overlay is defeated by disabling JavaScript or reading

@@ -10,6 +10,7 @@ import {
   responses,
 } from "@/db/schema";
 import { requirePageUser } from "@/lib/page-auth";
+import { canAccessCourse } from "@/lib/access";
 import { AccessibilityProvider } from "@/components/AccessibilityProvider";
 import TestRunner, { type RunnerQuestion } from "@/components/TestRunner";
 
@@ -37,6 +38,12 @@ export default async function TestPage({
     .from(assessments)
     .where(eq(assessments.id, attempt.assessmentId));
   if (!assessment) notFound();
+
+  // Per-course payment gate. Runs on the server, so hiding the overlay or
+  // disabling JavaScript does not help: the runner is never rendered.
+  if (!(await canAccessCourse(user.id, attempt.assessmentId))) {
+    redirect(`/paywall?course=${attempt.assessmentId}`);
+  }
 
   // Enforce the deadline on the server. The countdown in the client is only a
   // mirror; without this check a candidate could ignore the timer and keep

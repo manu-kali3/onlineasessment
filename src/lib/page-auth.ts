@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { hasDatabase } from "@/lib/env";
-import { hasPaidAccess } from "@/lib/access";
 import type { User } from "@/db/schema";
 
 /**
@@ -24,15 +23,16 @@ export function isPublicPath(pathname: string) {
 }
 
 /**
- * Auth and payment guard for pages.
+ * Auth guard for pages.
  *
- * The payment check runs on the server, so the gate cannot be defeated by
- * hiding the overlay or disabling JavaScript: a locked page is never rendered
- * at all. Ordering matters — with no database we go to the home page (which
- * shows the setup notice) rather than /login, which would bounce back and loop.
+ * There is no global payment gate any more. Access is decided per course, so a
+ * candidate can start a free course immediately and is only asked to pay for a
+ * paid one — see canAccessCourse in src/lib/access.ts. That check runs on the
+ * server, so it cannot be defeated by hiding an overlay or disabling
+ * JavaScript.
  *
- * BYPASS_PAYWALL=1 lets you work locally without paying. It is ignored in
- * production, so it cannot become an accidental way to sell nothing.
+ * Ordering matters: with no database we go to the home page (which shows the
+ * setup notice) rather than /login, which would bounce back and loop.
  */
 export async function requirePageUser(
   ...roles: User["role"][]
@@ -46,22 +46,5 @@ export async function requirePageUser(
     redirect(user.role === "candidate" ? "/candidate" : "/admin");
   }
 
-  if (paywallRequired() && !(await hasPaidAccess(user.id))) {
-    redirect("/paywall");
-  }
-
   return user;
-}
-
-export function paywallRequired() {
-  if (process.env.BYPASS_PAYWALL === "1") {
-    if (process.env.NODE_ENV === "production") {
-      console.error(
-        "[paywall] BYPASS_PAYWALL is set in production and is being ignored.",
-      );
-      return true;
-    }
-    return false;
-  }
-  return true;
 }

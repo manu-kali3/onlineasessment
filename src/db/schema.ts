@@ -192,6 +192,13 @@ export const payments = pgTable(
     currency: text("currency").notNull().default("KES"),
     /** The reference we send to the provider and receive back on the callback. */
     externalReference: text("external_reference").notNull(),
+    /**
+     * Which course this payment unlocks. Null means site-wide access, which is
+     * what the original global paywall recorded.
+     */
+    assessmentId: text("assessment_id").references(() => assessments.id, {
+      onDelete: "set null",
+    }),
     /** The provider's own transaction id, once known. */
     providerReference: text("provider_reference"),
     channelId: text("channel_id"),
@@ -208,6 +215,37 @@ export const payments = pgTable(
     uniqueIndex("payments_external_reference_idx").on(t.externalReference),
     index("payments_user_idx").on(t.userId),
     index("payments_status_idx").on(t.status),
+  ],
+);
+
+/**
+ * Which courses a candidate can currently start.
+ *
+ * A row is written when a course is free, when its payment completes, or when an
+ * admin grants it. Expiry is supported so a course can be rented rather than
+ * owned, though nothing sets it today.
+ */
+export const courseAccess = pgTable(
+  "course_access",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    assessmentId: text("assessment_id")
+      .notNull()
+      .references(() => assessments.id, { onDelete: "cascade" }),
+    /** How the access was obtained, for reporting. */
+    source: text("source").notNull(), // "free" | "payment" | "admin"
+    grantedBy: text("granted_by").references(() => users.id),
+    expiresAt: timestamp("expires_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("course_access_user_course_idx").on(t.userId, t.assessmentId),
+    index("course_access_user_idx").on(t.userId),
   ],
 );
 
@@ -269,6 +307,14 @@ export const assessments = pgTable(
     /** Percentile baseline used for ranking ("ideal baseline" or norm group) */
     normGroup: text("norm_group"),
     passMark: real("pass_mark"),
+    /**
+     * Per-course price in minor units. Zero means the course is free and needs
+     * no payment. Replaces the earlier global sign-in paywall: a candidate pays
+     * only for the specific course they enrol in.
+     */
+    priceMinor: integer("price_minor").notNull().default(0),
+    /** VAT charged on top of priceMinor, also in minor units. */
+    vatMinor: integer("vat_minor").notNull().default(0),
     requireProctoring: boolean("require_proctoring").notNull().default(false),
     blindReview: boolean("blind_review").notNull().default(true),
     shuffleQuestions: boolean("shuffle_questions").notNull().default(true),

@@ -21,6 +21,7 @@
     "db:create-admin": "node scripts/create-admin.cjs",
     "db:prune-unverified": "node scripts/prune-unverified.cjs",
     "db:grant-access": "node scripts/grant-access.cjs",
+    "db:set-course-price": "node scripts/set-course-price.cjs",
     "db:set-password": "node scripts/set-password.cjs",
     "payments:check": "node scripts/check-money.cjs",
     "smoke": "node scripts/smoke.cjs",
@@ -37,6 +38,7 @@
     "smoke:ai": "node scripts/smoke-ai.cjs",
     "smoke:mobile": "node scripts/smoke-mobile.cjs",
     "smoke:paywall": "node scripts/smoke-paywall.cjs",
+    "smoke:courses": "node scripts/smoke-courses.cjs",
     "email:test": "node scripts/send-test-email.cjs",
     "email:diagnose": "node scripts/diagnose-email.cjs",
     "email:prove": "node scripts/prove-delivery.cjs"

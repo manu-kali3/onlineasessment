@@ -2,25 +2,22 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
-import { payments, users } from "@/db/schema";
+import { assessments, payments, users } from "@/db/schema";
 import { getCurrentUser } from "@/lib/auth";
 import { databaseUnavailable } from "@/lib/api-guard";
 import { rateLimit, clientIp } from "@/lib/rate-limit";
-import { hasPaidAccess } from "@/lib/access";
+import { canAccessCourse } from "@/lib/access";
 import { newId } from "@/lib/id";
 import { payHeroConfigured, payHeroChannelConfigured, initiateStkPush } from "@/lib/payhero";
-import {
-  ACCESS_TOTAL_MINOR,
-  ACCESS_PRICE_MINOR,
-  ACCESS_VAT_MINOR,
-  CURRENCY,
-  normaliseKenyanPhone,
-} from "@/lib/pricing";
+import { CURRENCY, normaliseKenyanPhone } from "@/lib/pricing";
 
 const MAX_BODY_BYTES = 512;
 
 const bodySchema = z.object({
   phoneNumber: z.string().trim().min(1).max(20),
+  // Which course this payment unlocks. Required: there is no global paywall any
+  // more, so a payment without a course would unlock nothing.
+  assessmentId: z.string().min(1),
 });
 
 export async function POST(req: Request) {
@@ -30,14 +27,6 @@ export async function POST(req: Request) {
   const user = await getCurrentUser();
   if (!user || user.role !== "candidate") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  // Already paid: never take money twice.
-  if (await hasPaidAccess(user.id)) {
-    return NextResponse.json(
-      { error: "This account already has access." },
-      { status: 409 },
-    );
   }
 
   const limit = rateLimit(`checkout:ip:${clientIp(req)}`, 10, 10 * 60_000);
@@ -65,6 +54,16 @@ export async function POST(req: Request) {
     return NextResponse.json(
       { error: "Enter a phone number to receive the M-Pesa prompt." },
       { status: 400 },
+    );
+  }
+
+  const { assessmentId } = parsed.data;
+
+  // Already has access to this course: never take money twice.
+  if (await canAccessCourse(user.id, assessmentId)) {
+    return NextResponse.json(
+      { error: "This account already has access to this course." },
+      { status: 409 },
     );
   }
 
@@ -105,15 +104,40 @@ export async function POST(req: Request) {
   // webhook is matched to a row without trusting anything in the payload.
   const externalReference = `OA-${paymentId.replace(/-/g, "").slice(0, 20).toUpperCase()}`;
 
+  // Price comes from the course row, never from the request. A client cannot
+// therefore pay less than the course costs.
+  const [course] = await db
+    .select({
+      priceMinor: assessments.priceMinor,
+      vatMinor: assessments.vatMinor,
+    })
+    .from(assessments)
+    .where(eq(assessments.id, assessmentId))
+    .limit(1);
+
+  if (!course) {
+    return NextResponse.json({ error: "Course not found" }, { status: 404 });
+  }
+  if (course.priceMinor === 0) {
+    return NextResponse.json(
+      { error: "This course is free — no payment needed." },
+      { status: 400 },
+    );
+  }
+
+  const vatMinor = course.vatMinor ?? 0;
+  const totalMinor = course.priceMinor + vatMinor;
+
   const [row] = await db
     .insert(payments)
     .values({
       id: paymentId,
       userId: user.id,
+      assessmentId,
       status: "pending",
-      amountMinor: ACCESS_PRICE_MINOR,
-      vatMinor: ACCESS_VAT_MINOR,
-      totalMinor: ACCESS_TOTAL_MINOR,
+      amountMinor: course.priceMinor,
+      vatMinor,
+      totalMinor,
       currency: CURRENCY,
       externalReference,
       channelId,
@@ -128,7 +152,7 @@ export async function POST(req: Request) {
 
   const result = await initiateStkPush({
     // PayHero takes the gross amount; VAT is our bookkeeping.
-    amount: ACCESS_TOTAL_MINOR / 100,
+    amount: totalMinor / 100,
     phoneNumber: phone,
     channelId,
     externalReference,
@@ -164,7 +188,7 @@ export async function POST(req: Request) {
     paymentId: row.id,
     externalReference,
     status: "pending",
-    amountMinor: ACCESS_TOTAL_MINOR,
+    amountMinor: totalMinor,
     message:
       "Check your phone for the M-Pesa prompt and enter your PIN. Access is granted once the payment is confirmed.",
   });

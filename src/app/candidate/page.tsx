@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { requirePageUser } from "@/lib/page-auth";
 import { loadCandidateInvitations } from "@/lib/queries";
+import { formatKes } from "@/lib/pricing";
 import { AccessibilityProvider } from "@/components/AccessibilityProvider";
 import { AccessibilityControls } from "@/components/AccessibilityControls";
 import { TopBar } from "@/components/TopBar";
@@ -64,6 +65,16 @@ export default async function CandidateDashboard() {
                     </p>
                     <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-[var(--muted)]">
                       <span className="tag">{inv.assessment.durationMin} min</span>
+                      {inv.assessment.priceMinor > 0 ? (
+                        <span className="tag tag-warn">
+                          {formatKes(
+                            inv.assessment.priceMinor +
+                              (inv.assessment.vatMinor ?? 0),
+                          )}
+                        </span>
+                      ) : (
+                        <span className="tag tag-good">Free</span>
+                      )}
                       {inv.assessment.requireProctoring && (
                         <span className="tag tag-warn">Proctored</span>
                       )}
@@ -95,6 +106,15 @@ export default async function CandidateDashboard() {
                       <span className="btn btn-ghost" aria-disabled>
                         Expired
                       </span>
+                    ) : inv.assessment.priceMinor > 0 ? (
+                      // Paid course: the runner gates on access, so send them to
+                      // the per-course checkout rather than a dead end.
+                      <Link
+                        href={`/paywall?course=${inv.assessment.id}`}
+                        className="btn btn-primary"
+                      >
+                        {inv.attemptId ? "Resume" : "Pay to start"}
+                      </Link>
                     ) : (
                       <Link
                         href={`/candidate/assessment/${inv.id}`}
