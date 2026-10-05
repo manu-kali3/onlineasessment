@@ -13,6 +13,7 @@ import {
 } from "@/db/schema";
 import { getCurrentUser } from "@/lib/auth";
 import { databaseUnavailable } from "@/lib/api-guard";
+import { coursePaymentDenied } from "@/lib/api-access";
 
 import {
   computeCompetencyScores,
@@ -52,6 +53,9 @@ export async function POST(req: Request) {
     );
 
   if (!attempt) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  const denied = await coursePaymentDenied(user.id, attempt.assessmentId);
+  if (denied) return denied;
+
   if (attempt.status === "submitted" || attempt.status === "graded") {
     return NextResponse.json({ error: "Already submitted" }, { status: 409 });
   }

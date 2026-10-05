@@ -6,6 +6,7 @@ import {
   assessmentQuestions,
   attempts,
   competencies,
+  courseAccess,
   proctorEvents,
   questions,
   recordings,
@@ -13,6 +14,135 @@ import {
   users,
 } from "@/db/schema";
 import { computeIntegrityScore } from "@/lib/scoring";
+
+export type CatalogCourse = {
+  id: string;
+  title: string;
+  description: string | null;
+  durationMin: number;
+  delivery: string;
+  priceMinor: number;
+  vatMinor: number;
+  requireProctoring: boolean;
+  /** True when this candidate already has an invitation for the course. */
+  enrolled: boolean;
+  /** True when this candidate can start it today. */
+  accessible: boolean;
+  invitationId: string | null;
+  attemptId: string | null;
+  attemptStatus: string | null;
+  score: number | null;
+  percentile: number | null;
+};
+
+/**
+ * Every published course, annotated with whether this candidate is enrolled and
+ * whether they can start it.
+ *
+ * A course appears here whether or not the candidate has been invited, because
+ * the point of the catalog is discovery. Enrolling is what creates the
+ * invitation.
+ */
+export async function loadCourseCatalog(
+  candidateId: string,
+): Promise<CatalogCourse[]> {
+  const courses = await db
+    .select({
+      id: assessments.id,
+      title: assessments.title,
+      description: assessments.description,
+      durationMin: assessments.durationMin,
+      delivery: assessments.delivery,
+      priceMinor: assessments.priceMinor,
+      vatMinor: assessments.vatMinor,
+      requireProctoring: assessments.requireProctoring,
+    })
+    .from(assessments)
+    .where(eq(assessments.status, "published"))
+    .orderBy(assessments.createdAt);
+
+  if (courses.length === 0) return [];
+
+  const ids = courses.map((c) => c.id);
+
+  // Local names are suffixed to avoid shadowing the imported `attempts` table,
+  // which would otherwise make `attemptRows.map` resolve against the schema.
+  const [invitationRows, accessRows, attemptRows] = await Promise.all([
+    db
+      .select({
+        id: assessmentInvitations.id,
+        assessmentId: assessmentInvitations.assessmentId,
+      })
+      .from(assessmentInvitations)
+      .where(
+        and(
+          eq(assessmentInvitations.candidateId, candidateId),
+          inArray(assessmentInvitations.assessmentId, ids),
+        ),
+      ),
+    db
+      .select({ assessmentId: courseAccess.assessmentId })
+      .from(courseAccess)
+      .where(
+        and(
+          eq(courseAccess.userId, candidateId),
+          inArray(courseAccess.assessmentId, ids),
+        ),
+      ),
+    db
+      .select({
+        id: attempts.id,
+        assessmentId: attempts.assessmentId,
+        status: attempts.status,
+        score: attempts.score,
+        percentile: attempts.percentile,
+      })
+      .from(attempts)
+      .where(
+        and(
+          eq(attempts.candidateId, candidateId),
+          inArray(attempts.assessmentId, ids),
+        ),
+      ),
+  ]);
+
+  const invitationByCourse = new Map(
+    invitationRows.map((i): [string, (typeof invitationRows)[number]] => [
+      i.assessmentId,
+      i,
+    ]),
+  );
+  const accessSet = new Set(accessRows.map((a) => a.assessmentId));
+  const attemptByCourse = new Map(
+    attemptRows.map((a): [string, (typeof attemptRows)[number]] => [
+      a.assessmentId,
+      a,
+    ]),
+  );
+
+  return courses.map((c) => {
+    const invitation = invitationByCourse.get(c.id);
+    const attempt = attemptByCourse.get(c.id);
+    return {
+      id: c.id,
+      title: c.title,
+      description: c.description,
+      durationMin: c.durationMin,
+      delivery: c.delivery,
+      priceMinor: c.priceMinor,
+      vatMinor: c.vatMinor,
+      requireProctoring: c.requireProctoring,
+      enrolled: Boolean(invitation),
+      // Free courses are always accessible; paid ones need a grant or payment.
+      accessible: c.priceMinor === 0 || accessSet.has(c.id),
+      invitationId: invitation?.id ?? null,
+      attemptId: attempt?.id ?? null,
+      attemptStatus: attempt?.status ?? null,
+      score: attempt?.score ?? null,
+      percentile: attempt?.percentile ?? null,
+    };
+  });
+}
 
 export type DashboardData = {
   counts: {

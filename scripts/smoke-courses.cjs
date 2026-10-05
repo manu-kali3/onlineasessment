@@ -3,7 +3,7 @@
 const BASE = process.env.BASE || "http://localhost:3280";
 const { neon } = require("@neondatabase/serverless");
 require("dotenv").config({ path: ".env.local", quiet: true });
-const sql = neon(process.env.DATABASE_URL);
+const sql = require("./lib/db.cjs").withRetry(neon(process.env.DATABASE_URL));
 
 const rows = (r) => r.rows ?? r;
 
@@ -85,16 +85,19 @@ async function main() {
   pass("shows the price", paywall.html.includes("Total to pay"), true);
   pass("asks for a phone number", paywall.html.includes("M-Pesa phone number"), true);
 
-  // The runner itself must refuse before payment.
+  // The attempt APIs refuse before payment, so no attempt is ever created and the
+  // runner is unreachable. That is stronger than redirecting the runner page: the
+  // page gate alone would still leave the API open to a direct call.
   const started = await fetch(`${BASE}/api/attempts/start`, {
     method: "POST",
     headers: { "content-type": "application/json", cookie: cand.cookie },
     body: JSON.stringify({ invitationId: inv.id }),
   });
   const attempt = await started.json();
-  const runner = await get(`/candidate/test/${attempt.attemptId}`, cand.cookie);
-  pass("runner redirects unpaid user", runner.status, 307);
-  pass("  to the per-course paywall", runner.location, `/paywall?course=${paid.id}`);
+  pass("start refused for unpaid candidate", started.status, 402);
+  pass("  with PAYMENT_REQUIRED", attempt.code, "PAYMENT_REQUIRED");
+  pass("  pointing at checkout", attempt.checkoutUrl, `/paywall?course=${paid.id}`);
+  pass("  no attempt issued", attempt.attemptId, undefined);
 
   // ---- admin authoring ----
   console.log("\n=== admin authoring ===");
@@ -167,7 +170,16 @@ async function main() {
       vatMinor: paid.vat_minor ?? 0,
     }),
   });
-  console.log("\npaid price restored; all checks complete");
+
+  // Remove the question this run added. The admin API has no dedup — correct for
+  // a real author, but it means a test run would otherwise permanently change a
+  // seeded course's question count and break suites that assert on it.
+  await sql.query("delete from assessment_questions where question_id = $1", [
+    createdBody.questionId,
+  ]);
+  await sql.query("delete from questions where id = $1", [createdBody.questionId]);
+
+  console.log("\npaid price restored and test question removed; all checks complete");
 }
 
 main().catch((e) => {

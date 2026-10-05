@@ -14,11 +14,32 @@ function checkPassword(pw) {
   return null;
 }
 
+/** Reads all of stdin, so a password can be piped in rather than passed as argv. */
+function readStdin() {
+  return new Promise((resolve, reject) => {
+    let data = "";
+    process.stdin.setEncoding("utf8");
+    process.stdin.on("data", (c) => (data += c));
+    process.stdin.on("end", () => resolve(data));
+    process.stdin.on("error", reject);
+  });
+}
+
 async function main() {
-  const [email, password] = process.argv.slice(2);
+  const [email, passwordArg] = process.argv.slice(2);
+
+  // The password may arrive on stdin instead of argv. Shells mangle characters
+  // like `$` when passing arguments to native programs on Windows, so a password
+  // containing them would be silently truncated or substituted. Piping avoids
+  // that entirely.
+  const password =
+    passwordArg ?? (await readStdin()).trim();
 
   if (!email || !password) {
-    console.log("usage: node scripts/set-password.cjs you@example.com '<12+ chars>'");
+    console.log(
+      "usage: node scripts/set-password.cjs you@example.com '<12+ chars>'\n" +
+        "   or: echo <password> | node scripts/set-password.cjs you@example.com",
+    );
     process.exit(1);
   }
 

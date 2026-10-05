@@ -10,6 +10,7 @@ import {
 import { getCurrentUser } from "@/lib/auth";
 import { newId } from "@/lib/id";
 import { databaseUnavailable } from "@/lib/api-guard";
+import { coursePaymentDenied } from "@/lib/api-access";
 
 
 const bodySchema = z.object({
@@ -48,6 +49,9 @@ export async function POST(req: Request) {
     );
 
   if (!attempt) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  const denied = await coursePaymentDenied(user.id, attempt.assessmentId);
+  if (denied) return denied;
+
   if (attempt.status !== "in_progress") {
     return NextResponse.json({ error: "Attempt closed" }, { status: 409 });
   }

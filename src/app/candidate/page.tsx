@@ -34,13 +34,25 @@ export default async function CandidateDashboard() {
   const a11y = user.accessibilityProfile ?? {};
   return (
     <AccessibilityProvider initial={a11y}>
-      <TopBar name={user.fullName} role={user.role} nav={[{ href: "/candidate", label: "My assessments" }]} />
+      <TopBar name={user.fullName} role={user.role} nav={[
+          { href: "/candidate", label: "My assessments" },
+          { href: "/candidate/courses", label: "Browse courses" },
+        ]} />
       <main className="mx-auto max-w-6xl px-6 py-8">
         <h1 className="text-2xl font-bold tracking-tight">Your assessments</h1>
         <p className="mt-1 text-sm text-[var(--muted)]">
           Hi {user.fullName.split(" ")[0]}. Each assessment has its own deadline and
           timer. Your progress saves automatically.
         </p>
+
+        <div className="mt-4">
+          <Link
+            href="/candidate/courses"
+            className="btn btn-ghost w-full justify-center sm:w-auto"
+          >
+            Browse all available courses →
+          </Link>
+        </div>
         <div className="mt-5">
           <AccessibilityControls />
         </div>

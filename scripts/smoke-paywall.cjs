@@ -1,136 +1,238 @@
-// Verifies the paywall is enforced server-side, not just shown as an overlay.
-// The critical check is that an unpaid user's protected pages do not contain
-// their content at all — if it were a client-side overlay, the HTML would still
-// leak the assessment.
-const BASE = process.env.BASE || "http://localhost:3240";
+// Verifies the paywall is enforced server-side, not merely shown as an overlay.
+//
+// The critical check is that an unpaid candidate's protected content is absent
+// from the HTML entirely. If the gate were client-side — an overlay, a hidden
+// div, CSS — the question text would still ship in the response and be readable
+// with view-source or JavaScript disabled.
+//
+// This is now per course rather than site-wide: a paid course refuses an unpaid
+// candidate, a free course renders normally.
+const BASE = process.env.BASE || "http://localhost:3280";
+const { neon } = require("@neondatabase/serverless");
+const bcrypt = require("bcryptjs");
+require("dotenv").config({ path: ".env.local", quiet: true });
+const sql = neon(process.env.DATABASE_URL);
+
+let pass = 0;
+let fail = 0;
+function check(label, actual, expected) {
+  const ok = JSON.stringify(actual) === JSON.stringify(expected);
+  ok ? pass++ : fail++;
+  console.log(
+    `${ok ? "PASS" : "FAIL"}  ${label}${ok ? "" : ` (got ${JSON.stringify(actual)}, want ${JSON.stringify(expected)})`}`,
+  );
+}
+function truthy(label, value) {
+  value ? pass++ : fail++;
+  console.log(`${value ? "PASS" : "FAIL"}  ${label}`);
+}
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+async function q(text, params) {
+  let last;
+  for (let i = 0; i < 6; i++) {
+    try {
+      // The Neon HTTP driver resolves to a plain array, not an object with
+      // `.rows`. Falling through to `[]` here would silently match nothing.
+      const res = await sql.query(text, params);
+      return res.rows ?? res;
+    } catch (e) {
+      last = e;
+      await sleep(600 * (i + 1));
+    }
+  }
+  throw last;
+}
+
+async function resilient(fn, tries = 6) {
+  let last;
+  for (let i = 0; i < tries; i++) {
+    try {
+      const res = await fn();
+      if (res.status < 500) return res;
+      last = res;
+    } catch (e) {
+      last = e;
+    }
+    await sleep(600 * (i + 1));
+  }
+  if (last instanceof Error) throw last;
+  return last;
+}
 
 async function login(email, password) {
-  const res = await fetch(`${BASE}/api/auth/login`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ email, password }),
-  });
-  const raw = res.headers.getSetCookie?.() ?? [];
-  let data = null;
-  try {
-    data = await res.json();
-  } catch {}
+  const res = await resilient(() =>
+    fetch(`${BASE}/api/auth/login`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    }),
+  );
   return {
     status: res.status,
-    data,
-    cookie: raw.map((c) => c.split(";")[0]).join("; "),
+    cookie: (res.headers.getSetCookie?.() ?? []).map((c) => c.split(";")[0]).join("; "),
   };
 }
 
 async function get(path, cookie) {
-  const res = await fetch(`${BASE}${path}`, {
-    headers: cookie ? { cookie } : {},
-    redirect: "manual",
-  });
-  return { status: res.status, location: res.headers.get("location"), html: await res.text() };
+  const res = await resilient(() =>
+    fetch(`${BASE}${path}`, {
+      headers: cookie ? { cookie } : {},
+      redirect: "manual",
+    }),
+  );
+  return {
+    status: res.status,
+    location: res.headers.get("location"),
+    html: await res.text(),
+  };
+}
+
+async function post(path, body, cookie) {
+  const res = await resilient(() =>
+    fetch(`${BASE}${path}`, {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie },
+      body: JSON.stringify(body ?? {}),
+    }),
+  );
+  return { status: res.status, data: await res.json().catch(() => ({})) };
 }
 
 async function main() {
-  const pass = (l, a, e) =>
-    console.log(
-      `${a === e ? "PASS" : "FAIL"}  ${l}${a === e ? "" : ` (got ${JSON.stringify(a)})`}`,
+  const password = process.env.SMOKE_CANDIDATE_PASSWORD || "Passw0rd!";
+  const email = `smoke-paywall-${Date.now()}@portal.test`;
+  let uid = null;
+
+  const paid = (
+    await q(
+      "select id, title from assessments where status = 'published' and price_minor > 0 limit 1",
+    )
+  )[0];
+  const free = (
+    await q(
+      "select id, title from assessments where status = 'published' and price_minor = 0 limit 1",
+    )
+  )[0];
+
+  if (!paid || !free) {
+    console.log("SKIP  needs one published paid course and one free course");
+    return;
+  }
+
+  try {
+    await q("delete from users where email = $1", [email]);
+    await q(
+      `insert into users (id, email, full_name, password_hash, role, email_verified, session_version)
+       values ($1, $2, $3, $4, 'candidate', true, 0)`,
+      [crypto.randomUUID(), email, "Smoke Paywall", bcrypt.hashSync(password, 10)],
+    );
+    uid = (await q("select id from users where email = $1", [email]))[0].id;
+
+    const cand = await login(email, password);
+    check("candidate signs in", cand.status, 200);
+
+    // ---- a paid course's content must not reach an unpaid candidate ----
+    console.log("\n=== paid course content is not leaked ===");
+    const prompts = (
+      await q(
+        `select q.prompt from questions q
+           join assessment_questions aq on aq.question_id = q.id
+          where aq.assessment_id = $1`,
+        [paid.id],
+      )
+    ).map((r) => r.prompt);
+    truthy(`paid course has ${prompts.length} questions to leak`, prompts.length > 0);
+
+    // Enrol via invitation so a pre-flight page exists, then try to open it.
+    const invitationId = crypto.randomUUID();
+    await q(
+      `insert into assessment_invitations
+         (id, assessment_id, candidate_id, token, expires_at, status)
+       values ($1, $2, $3, $4, now() + interval '30 days', 'invited')`,
+      [invitationId, paid.id, uid, crypto.randomUUID().replace(/-/g, "")],
     );
 
-  console.log("=== public paths remain reachable ===");
-  for (const p of ["/", "/login", "/register", "/forgot-password"]) {
-    const r = await get(p, "");
-    pass(`${p} reachable without paying`, r.status, 200);
-  }
+    const started = await post("/api/attempts/start", { invitationId }, cand.cookie);
+    check("cannot start a paid course without paying", started.status, 402);
 
-  console.log("\n=== unpaid user is redirected to the paywall ===");
-  const unpaid = await login("jordan@portal.test", "Passw0rd!");
-  pass("can sign in", unpaid.status, 200);
+    // Ask for a plausible attempt id: the response must not contain questions.
+    const fakeId = crypto.randomUUID();
+    const runnerPage = await get(`/candidate/test/${fakeId}`, cand.cookie);
+    for (const prompt of prompts) {
+      check(
+        `  HTML omits a question prompt: "${prompt.slice(0, 32)}…"`,
+        runnerPage.html.includes(prompt),
+        false,
+      );
+    }
 
-  const dash = await get("/candidate", unpaid.cookie);
-  pass("/candidate redirects", dash.status, 307);
-  pass("  to /paywall", dash.location, "/paywall");
+    const wall = await get(`/paywall?course=${paid.id}`, cand.cookie);
+    check("paywall renders for the paid course", wall.status, 200);
+    truthy("paywall states the price", wall.html.includes("Total to pay"));
+    truthy("paywall offers a reference-code path", wall.html.includes("Already paid?"));
+    check("paywall leaks no question text", prompts.some((p) => wall.html.includes(p)), false);
 
-  const admin = await get("/admin", unpaid.cookie);
-  pass("/admin redirects too (staff paywalled as well)", admin.status, 307);
-
-  const pw = await get("/paywall", unpaid.cookie);
-  pass("/paywall renders", pw.status, 200);
-  pass("  shows the price", pw.html.includes("1,050"), true);
-  pass("  shows VAT separately", pw.html.includes("50.00"), true);
-  pass("  explains permanent access", pw.html.includes("permanent"), true);
-
-  // The checkout only appears once PayHero is fully configured. Without a
-  // channel id it must say so rather than offer a payment that cannot work.
-  const channelSet = Boolean(process.env.PAYHERO_CHANNEL_ID);
-  if (channelSet) {
-    pass("  asks for a phone number", pw.html.includes("M-Pesa phone number"), true);
-  } else {
-    // Which variable is absent depends on the environment, so assert only
-    // that the page hides checkout and names a PAYHERO_ variable to set.
-    const namesMissing = /PAYHERO_(USERNAME|CHANNEL_ID)/.test(pw.html);
-    pass(
-      "  hides checkout and names the missing variable",
-      pw.html.includes("not yet configured") && namesMissing,
-      true,
+    // ---- a free course is unaffected ----
+    console.log("\n=== a free course still works ===");
+    const freeInvitation = crypto.randomUUID();
+    await q(
+      `insert into assessment_invitations
+         (id, assessment_id, candidate_id, token, expires_at, status)
+       values ($1, $2, $3, $4, now() + interval '30 days', 'invited')`,
+      [freeInvitation, free.id, uid, crypto.randomUUID().replace(/-/g, "")],
     );
+
+    const freeStart = await post(
+      "/api/attempts/start",
+      { invitationId: freeInvitation },
+      cand.cookie,
+    );
+    check("free course starts without payment", freeStart.status, 200);
+
+    const freeRunner = await get(
+      `/candidate/test/${freeStart.data.attemptId}`,
+      cand.cookie,
+    );
+    check("free course runner renders", freeRunner.status, 200);
+
+    const freePrompts = (
+      await q(
+        `select q.prompt from questions q
+           join assessment_questions aq on aq.question_id = q.id
+          where aq.assessment_id = $1`,
+        [free.id],
+      )
+    ).map((r) => r.prompt);
+    const leaked = freePrompts.filter((p) => freeRunner.html.includes(p));
+    check(
+      `free course HTML contains its ${freePrompts.length} questions`,
+      leaked.length,
+      freePrompts.length,
+    );
+
+    // ---- no global gate remains ----
+    console.log("\n=== no site-wide gate remains ===");
+    const dash = await get("/candidate", cand.cookie);
+    check("dashboard reachable without paying", dash.status, 200);
+    const cat = await get("/candidate/courses", cand.cookie);
+    check("catalog reachable without paying", cat.status, 200);
+    const bareWall = await get("/paywall", cand.cookie);
+    check("bare /paywall redirects away", bareWall.status, 307);
+    check("  to the dashboard", bareWall.location, "/candidate");
+  } finally {
+    if (uid) {
+      await q("delete from users where id = $1", [uid]).catch(() => {});
+      console.log("\nfixture removed");
+    }
   }
 
-  console.log("\n=== content is NOT in the response (not an overlay) ===");
-  // If the gate were client-side, the assessment titles would appear here.
-  const leaked = ["Core Aptitude", "AI Fundamentals", "Graphic Design", "Web Development"];
-  for (const term of leaked) {
-    pass(`"${term}" absent from /candidate HTML`, pw.html.includes(term), false);
-  }
-
-  console.log("\n=== assessment APIs are blocked too ===");
-  const startRes = await fetch(`${BASE}/api/attempts/start`, {
-    method: "POST",
-    headers: { "content-type": "application/json", cookie: unpaid.cookie },
-    body: JSON.stringify({ invitationId: "inv-2" }),
-  });
-  pass("start returns 402", startRes.status, 402);
-  const body = await startRes.json();
-  pass("  with PAYMENT_REQUIRED", body.code, "PAYMENT_REQUIRED");
-  pass("  pointing at checkout", body.checkoutUrl, "/paywall");
-
-  const submitRes = await fetch(`${BASE}/api/attempts/submit`, {
-    method: "POST",
-    headers: { "content-type": "application/json", cookie: unpaid.cookie },
-    body: JSON.stringify({ attemptId: "att-1" }),
-  });
-  pass("submit returns 402", submitRes.status, 402);
-
-  const statusRes = await fetch(`${BASE}/api/payments/status`, {
-    headers: { cookie: unpaid.cookie },
-  });
-  pass("status endpoint reports unpaid", (await statusRes.json()).paid, false);
-
-  console.log("\n=== a paid user gets through ===");
-  const { neon } = require("@neondatabase/serverless");
-  require("dotenv").config({ path: ".env.local", quiet: true });
-  const sql = neon(process.env.DATABASE_URL);
-  await sql.query("update users set access_granted_at = now() where email = $1", [
-    "jordan@portal.test",
-  ]);
-
-  const after = await get("/candidate", unpaid.cookie);
-  pass("/candidate now renders", after.status, 200);
-  pass("  lists assessments", after.html.includes("Core Aptitude"), true);
-
-  const startOk = await fetch(`${BASE}/api/attempts/start`, {
-    method: "POST",
-    headers: { "content-type": "application/json", cookie: unpaid.cookie },
-    body: JSON.stringify({ invitationId: "inv-2" }),
-  });
-  pass("start no longer 402", startOk.status !== 402, true);
-
-  await sql.query("update users set access_granted_at = null where email = $1", [
-    "jordan@portal.test",
-  ]);
-  console.log("\nrevoked again for the next run; all checks complete");
+  console.log(`\n${pass} passed, ${fail} failed`);
+  if (fail) process.exit(1);
 }
 
 main().catch((e) => {
-  console.log("FATAL:", e.message);
+  console.log("FATAL:", e.stack ?? e.message);
   process.exit(1);
 });

@@ -77,6 +77,12 @@ export const paymentStatus = pgEnum("payment_status", [
   "failed",
 ]);
 
+export const referenceStatus = pgEnum("reference_status", [
+  "pending",
+  "verified",
+  "rejected",
+]);
+
 export const integrationProvider = pgEnum("integration_provider", [
   "workday",
   "greenhouse",
@@ -246,6 +252,44 @@ export const courseAccess = pgTable(
   (t) => [
     uniqueIndex("course_access_user_course_idx").on(t.userId, t.assessmentId),
     index("course_access_user_idx").on(t.userId),
+  ],
+);
+
+/**
+ * A payment reference a candidate submits after paying outside the portal —
+ * for example an M-Pesa confirmation code from paying the paybill directly, or
+ * a bank transfer reference.
+ *
+ * These start as `pending` and only grant access once an admin verifies them,
+ * because a reference code is trivially guessable and must never unlock a course
+ * on its own.
+ */
+export const paymentReferences = pgTable(
+  "payment_references",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    assessmentId: text("assessment_id")
+      .notNull()
+      .references(() => assessments.id, { onDelete: "cascade" }),
+    /** The code the customer pasted, e.g. an M-Pesa confirmation. */
+    referenceCode: text("reference_code").notNull(),
+    /** Where the customer says they paid from. */
+    channel: text("channel"),
+    amountMinor: integer("amount_minor"),
+    status: referenceStatus("status").notNull().default("pending"),
+    reviewedBy: text("reviewed_by").references(() => users.id),
+    reviewNote: text("review_note"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+  },
+  (t) => [
+    index("payment_references_user_idx").on(t.userId),
+    index("payment_references_status_idx").on(t.status),
   ],
 );
 

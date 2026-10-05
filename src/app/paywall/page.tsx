@@ -9,11 +9,8 @@ import { hasDatabase } from "@/lib/env";
 import { canAccessCourse } from "@/lib/access";
 import { TopBar } from "@/components/TopBar";
 import CourseCheckout from "./CourseCheckout";
-import {
-  ACCESS_PRICE_MINOR,
-  ACCESS_VAT_MINOR,
-  formatKes,
-} from "@/lib/pricing";
+import ReferenceForm from "./ReferenceForm";
+import { formatKes } from "@/lib/pricing";
 import { payHeroConfigured, payHeroChannelConfigured } from "@/lib/payhero";
 
 export default async function PaywallPage({
@@ -105,6 +102,20 @@ export default async function PaywallPage({
               totalMinor={totalMinor}
             />
           )}
+        </section>
+
+        {/*
+          A customer who paid the paybill or bank account directly has no portal
+          payment to show, so they paste the confirmation code instead. This never
+          grants access on its own — an admin verifies it.
+        */}
+        <section className="panel mt-4 p-6">
+          <h2 className="text-base font-semibold">Already paid?</h2>
+          <p className="mt-1 text-sm text-[var(--muted)]">
+            Paid M-Pesa to the paybill, or sent a bank transfer? Paste the
+            confirmation code and an admin will verify it.
+          </p>
+          <ReferenceForm assessmentId={assessment.id} />
         </section>
 
         <p className="mt-6 text-xs text-[var(--muted)]">

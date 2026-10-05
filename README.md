@@ -395,22 +395,62 @@ The checkout reads the price from the course row, never from the request, so a
 client cannot pay less than a course costs. Amounts are integer minor units and
 VAT is recorded per payment row.
 
-The test runner gates on `canAccessCourse` server-side, so hiding an overlay or
-disabling JavaScript does not help — an unpaid user is redirected to
-`/paywall?course=<id>` and the runner is never rendered.
+### The gate is server-side, and it is per course
 
-**The gate is server-side, not an overlay.** This is the important part: a
-client-side overlay is defeated by disabling JavaScript or reading
-view-source, so it protects nothing. `requirePageUser` checks
-`users.accessGrantedAt` and a locked page is never rendered — the assessment
-titles do not appear in the HTML at all. The four assessment APIs return
-`402 PAYMENT_REQUIRED` independently, because pages can be bypassed by calling
-an endpoint directly. `smoke:paywall` asserts the absence of content in the
-response, which is the check that would fail if this regressed to an overlay.
+A client-side overlay is defeated by disabling JavaScript or reading
+view-source, so it protects nothing. There is no overlay here. Two independent
+checks enforce access:
 
-Prices are integer minor units, and the total is computed on the server in
-`pricing.ts` — a client-supplied amount is never trusted. VAT is stored per
+- **Pages.** `requirePageUser` no longer checks payment at all, because the
+  answer now depends on which course is being opened. The test runner page calls
+  `canAccessCourse` itself and redirects to `/paywall?course=<id>` when access is
+  missing, so a locked runner is never rendered.
+- **APIs.** `/api/attempts/{start,response,submit,proctor}` each call
+  `coursePaymentDenied`, which returns `402 PAYMENT_REQUIRED` with a
+  `checkoutUrl`. This is not redundant: the APIs are reachable directly, and
+  holding an invitation is *not* proof of payment — an admin can invite someone
+  to a paid course, a seed can do it, or a course can be repriced after
+  invitations went out. `smoke:granted` builds exactly that state and asserts
+  every attempt API refuses it.
+
+`smoke:paywall` asserts the absence of question text in the HTML of a locked
+page, which is the check that would fail if this regressed to an overlay.
+
+Amounts are integer minor units and the total is computed on the server from the
+course row — a client-supplied amount is never trusted. VAT is stored per
 payment row so a later price change cannot rewrite what was already charged.
+There are deliberately no global price constants in `pricing.ts`; a module
+constant is exactly how a stale price would silently get charged again.
+
+### Enrolling in a course
+
+On sign-in a candidate sees **Browse courses** (`/candidate/courses`), which lists
+every published course whether or not they were invited, annotated with whether
+they can start it. Enrolling is what creates the invitation:
+
+- a free course enrols in place and is granted `course_access` with source `free`
+- a paid course is **not** enrolled. The API returns the checkout URL and writes
+  nothing, because taking money belongs to the payment endpoint and must never be
+  triggered by a plain POST
+- re-enrolling is a no-op rather than an error, so a double-click cannot create a
+  duplicate invitation
+
+### Paying outside the portal
+
+A customer who paid the paybill or bank account directly has no portal payment to
+show, so `/paywall?course=<id>` carries an **Already paid?** form that accepts the
+confirmation code. Those rows land in `payment_references` as `pending`.
+
+**Submitting a reference grants nothing by itself.** An M-Pesa confirmation code
+is not secret — anyone who has ever paid you has seen one and the format is well
+known — so an admin must verify it at **Payments** (`/admin/payments`), which
+shows the candidate's name and email next to the code so it can be matched against
+the real notification. Only `verify` calls `grantCourseAccess`. One open request
+per course per candidate is allowed, so the queue cannot be spammed.
+
+There is no undo on a verified reference: a mistake is corrected by granting
+access directly, because revoking it after the candidate has started the test
+would be worse.
 
 **Completion comes from the webhook, never from the request that started it.**
 An STK push returning 2xx only means the prompt was accepted; the customer still
@@ -448,18 +488,28 @@ provider ledger.
 
 ### Granting access without payment
 
-For the operator's own accounts and test users, access can be granted directly:
+For the operator's own accounts and test users, course access can be granted
+directly. Given no course ids it grants every published course:
 
 ```bash
-npm run db:grant-access you@example.com      # grant
+npm run db:grant-access you@example.com                     # all published
+npm run db:grant-access you@example.com asmt-web-fundamentals  # just one
 npm run db:grant-access -- --revoke you@example.com
 npm run db:set-password you@example.com '<12+ chars>'
 ```
 
-A manual grant writes a `payments` row with `provider = 'manual'` and a payload
-naming the reason, so access that did not come from money is distinguishable in
-reporting rather than inflating revenue. `set-password` bumps `sessionVersion`,
-so changing a password signs out existing sessions as it should.
+A manual grant writes a `course_access` row with source `admin`, plus a `payments`
+row with `provider = 'manual'` and a payload naming the courses and the reason, so
+access that did not come from money is distinguishable in reporting rather than
+inflating revenue. The amounts on that row are zero for the same reason.
+
+`set-password` bumps `sessionVersion`, so changing a password signs out existing
+sessions as it should. Note that on Windows, pass the password via **stdin** if it
+contains `$` or other characters the shell would otherwise eat:
+
+```bash
+echo 'your-password-here' | npm run db:set-password you@example.com
+```
 
 ## Security notes
 

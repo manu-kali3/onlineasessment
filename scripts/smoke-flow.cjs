@@ -1,6 +1,42 @@
 // Full candidate journey: start an attempt, autosave answers, submit, and check
 // the resulting score, percentile, and competency breakdown.
+//
+// The seed gives inv-2 one in-progress attempt. Submitting consumes it, so this
+// resets that state first and the suite can be run repeatedly.
 const BASE = process.env.BASE || "http://localhost:3120";
+const { neon } = require("@neondatabase/serverless");
+require("dotenv").config({ path: ".env.local", quiet: true });
+const sql = neon(process.env.DATABASE_URL);
+
+const rows = (r) => r.rows ?? r;
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+/** Neon connections drop intermittently here; retry rather than fail spuriously. */
+async function q(text, params) {
+  let last;
+  for (let i = 0; i < 6; i++) {
+    try {
+      return rows(await sql.query(text, params));
+    } catch (e) {
+      last = e;
+      await sleep(600 * (i + 1));
+    }
+  }
+  throw last;
+}
+
+/** Puts inv-2's attempt back to a fresh in-progress state. */
+async function resetAttempt() {
+  await q("delete from responses where attempt_id in (select id from attempts where invitation_id = $1)", ["inv-2"]);
+  await q(
+    `update attempts
+        set status = 'in_progress', score = null, percentile = null,
+            submitted_at = null, integrity_score = 100
+      where invitation_id = $1`,
+    ["inv-2"],
+  );
+  await q("delete from attempts where invitation_id = $1 and status <> 'in_progress'", ["inv-2"]);
+}
 
 async function login(email, password) {
   const res = await fetch(`${BASE}/api/auth/login`, {
@@ -28,8 +64,9 @@ async function post(path, cookie, body) {
 }
 
 async function main() {
+  await resetAttempt();
   const cookie = await login("jordan@portal.test", "Passw0rd!");
-  console.log("logged in as jordan (seeded in-progress attempt)");
+  console.log("logged in as jordan (seeded in-progress attempt, reset for this run)");
 
   // inv-2 already has att-2 in progress; start must RESUME, not create a new one.
   const start1 = await post("/api/attempts/start", cookie, {

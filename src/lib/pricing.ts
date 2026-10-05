@@ -1,20 +1,13 @@
 /**
- * Pricing for site access.
+ * Pricing helpers.
  *
- * Amounts are integer minor units (cents). The VAT-inclusive total is derived
- * here and nowhere else: a client-supplied total is never trusted, because the
- * client is the party being charged.
+ * Amounts are integer minor units (cents) throughout. There are deliberately no
+ * global price constants here: the amount a candidate owes is a property of the
+ * course they enrolled in, read from `assessments.priceMinor`, and a module
+ * constant is exactly how a stale price would silently get charged again.
  */
 
 export const CURRENCY = "KES";
-
-/** Net charge before VAT. */
-export const ACCESS_PRICE_MINOR = 100_000; // 1000.00 KES
-
-/** Flat VAT added on top of the net price. */
-export const ACCESS_VAT_MINOR = 5_000; // 50.00 KES
-
-export const ACCESS_TOTAL_MINOR = ACCESS_PRICE_MINOR + ACCESS_VAT_MINOR; // 1050.00
 
 export function formatKes(minor: number) {
   return `KES ${(minor / 100).toLocaleString("en-KE", {

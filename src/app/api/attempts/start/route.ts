@@ -6,6 +6,7 @@ import { assessments, assessmentInvitations, attempts } from "@/db/schema";
 import { getCurrentUser } from "@/lib/auth";
 import { newId } from "@/lib/id";
 import { databaseUnavailable } from "@/lib/api-guard";
+import { coursePaymentDenied } from "@/lib/api-access";
 
 
 const bodySchema = z.object({
@@ -44,6 +45,11 @@ export async function POST(req: Request) {
   if (!invitation) {
     return NextResponse.json({ error: "Invitation not found" }, { status: 404 });
   }
+  // Having an invitation is not the same as having paid: an invitation can be
+  // issued by an admin, seeded, or left over from when the course was free.
+  const denied = await coursePaymentDenied(user.id, invitation.assessmentId);
+  if (denied) return denied;
+
   if (invitation.expiresAt.getTime() < Date.now()) {
     return NextResponse.json({ error: "Invitation expired" }, { status: 410 });
   }

@@ -6,6 +6,7 @@ import { attempts, proctorEvents } from "@/db/schema";
 import { getCurrentUser } from "@/lib/auth";
 import { newId } from "@/lib/id";
 import { databaseUnavailable } from "@/lib/api-guard";
+import { coursePaymentDenied } from "@/lib/api-access";
 
 import { computeIntegrityScore } from "@/lib/scoring";
 
@@ -52,6 +53,9 @@ export async function POST(req: Request) {
     .where(and(eq(attempts.id, attemptId), eq(attempts.candidateId, user.id)));
 
   if (!attempt) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  const denied = await coursePaymentDenied(user.id, attempt.assessmentId);
+  if (denied) return denied;
+
   if (attempt.status !== "in_progress") {
     return NextResponse.json({ error: "Attempt closed" }, { status: 409 });
   }

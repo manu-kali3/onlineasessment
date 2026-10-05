@@ -1,8 +1,9 @@
 // Confirms the AI quiz seeded correctly and, more importantly, that it
 // auto-grades: submit a perfect run and a mixed run and check the scores.
 const { neon } = require("@neondatabase/serverless");
+const { randomBytes } = require("crypto");
 require("dotenv").config({ path: ".env.local", quiet: true });
-const sql = neon(process.env.DATABASE_URL);
+const sql = require("./lib/db.cjs").withRetry(neon(process.env.DATABASE_URL));
 
 const BASE = process.env.BASE || "http://localhost:3220";
 const EMAIL = "jordan@portal.test";
@@ -38,6 +39,21 @@ async function main() {
     console.log(
       `${a === e ? "PASS" : "FAIL"}  ${l}${a === e ? "" : ` (got ${JSON.stringify(a)})`}`,
     );
+
+  // This suite is about AI auto-grading, not payments. AI Fundamentals is a paid
+  // course, so without a grant every attempt API correctly answers 402 and the
+  // suite would fail for the wrong reason.
+  const uid = rows(
+    await sql.query("select id from users where email = $1", [EMAIL]),
+  )[0]?.id;
+  if (uid) {
+    await sql.query(
+      `insert into course_access (id, user_id, assessment_id, source)
+       values ($1, $2, 'asmt-ai-fundamentals', 'admin')
+       on conflict (user_id, assessment_id) do nothing`,
+      [randomBytes(12).toString("hex"), uid],
+    );
+  }
 
   console.log("=== seeded questions and key ===");
   const qs = rows(
@@ -80,13 +96,18 @@ async function main() {
     ),
   )[0];
 
-  // Clear any prior attempt so we get a clean one.
+  // Clear prior attempts for THIS course only. Wiping every attempt for the user
+// would destroy the fixtures other suites (smoke-flow) depend on.
   await sql.query(
-    "delete from attempts where candidate_id in (select id from users where email = $1)",
+    `delete from attempts
+      where assessment_id = 'asmt-ai-fundamentals'
+        and candidate_id in (select id from users where email = $1)`,
     [EMAIL],
   );
   await sql.query(
-    "update assessment_invitations set status = 'invited' where candidate_id in (select id from users where email = $1)",
+    `update assessment_invitations set status = 'invited'
+      where assessment_id = 'asmt-ai-fundamentals'
+        and candidate_id in (select id from users where email = $1)`,
     [EMAIL],
   );
 
@@ -94,10 +115,18 @@ async function main() {
   const attemptId = start.data?.attemptId;
   pass("attempt started", start.status, 200);
 
-  // Three right, two wrong.
+  // Three right, two wrong. Each save is checked: a silently rejected answer would
+  // otherwise shift the score and make this suite fail for the wrong reason.
   const answers = { "ai-agi": "b", "ai-turing": "c", "ai-computer-vision": "d", "ai-backprop": "a", "ai-reinforcement": "a" };
   for (const [questionId, answer] of Object.entries(answers)) {
-    await call("/api/attempts/response", { attemptId, questionId, answer }, cookie);
+    const saved = await call(
+      "/api/attempts/response",
+      { attemptId, questionId, answer },
+      cookie,
+    );
+    if (saved.status !== 200) {
+      console.log(`   ! save rejected for ${questionId}: ${saved.status} ${JSON.stringify(saved.data)}`);
+    }
   }
 
   const submit = await call("/api/attempts/submit", { attemptId }, cookie);
@@ -113,8 +142,25 @@ async function main() {
   pass("attempt recorded as graded", attempt.status, "graded");
   pass("score persisted", attempt.score, 60);
 
-  await sql.query("delete from attempts where candidate_id in (select id from users where email = $1)", [EMAIL]);
+  await cleanup(uid);
   console.log("\ncleanup done");
+}
+
+/** Removes the attempt and the temporary grant this suite created. */
+async function cleanup(uid) {
+  await sql.query(
+    `delete from attempts
+      where assessment_id = 'asmt-ai-fundamentals'
+        and candidate_id in (select id from users where email = $1)`,
+    [EMAIL],
+  );
+  // Revoke only the grant this suite made, so the paywall suites keep working.
+  if (uid) {
+    await sql.query(
+      "delete from course_access where user_id = $1 and assessment_id = 'asmt-ai-fundamentals' and source = 'admin'",
+      [uid],
+    );
+  }
 }
 
 main().catch((e) => {
