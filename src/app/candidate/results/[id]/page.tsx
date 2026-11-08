@@ -33,50 +33,57 @@ export default async function ResultPage({
   return (
     <main className="min-h-dvh">
       <TopBar name={user.fullName} role={user.role} nav={[{ href: "/candidate", label: "My assessments" }]} />
-      <div className="mx-auto max-w-4xl px-6 py-8">
-        <h1 className="text-2xl font-bold tracking-tight">
+      <div className="mx-auto w-full max-w-4xl px-4 pt-7 pb-16 sm:px-6">
+        <h1 className="page-title">
           {assessment?.title ?? "Assessment"} result
         </h1>
-        <p className="mt-1 text-sm text-[var(--muted)]">
+        <p className="page-sub">
           {attempt.status === "graded"
             ? "Auto-graded and complete. Every item has been scored."
             : "Submitted. The score below covers the auto-graded items only — written and video responses are awaiting assessor review, and the final score and outcome follow."}
         </p>
         <section className="mt-6 grid gap-4 sm:grid-cols-3">
-          <div className="panel p-5">
-            <div className="text-sm font-semibold text-[var(--muted)]">
+          <div className="panel stat stat-accent">
+            <div className="stat-label">
               Overall score
-              {attempt.status === "submitted" && " (provisional)"}
+              {attempt.status === "submitted" && " · provisional"}
             </div>
-            <div className="mt-1 text-4xl font-bold tabular-nums">
+            <div className="stat-value !text-[2.1rem]">
               {attempt.score !== null ? `${attempt.score}%` : "—"}
             </div>
           </div>
-          <div className="panel p-5">
-            <div className="text-sm font-semibold text-[var(--muted)]">Percentile</div>
-            <div className="mt-1 text-4xl font-bold tabular-nums">
+          <div className="panel stat">
+            <div className="stat-label">Percentile</div>
+            <div className="stat-value !text-[2.1rem]">
               {attempt.percentile !== null ? attempt.percentile : "—"}
             </div>
-            <div className="mt-1 text-xs text-[var(--muted)]">
+            <div className="mt-1 text-[0.72rem] text-[var(--faint)]">
               vs. {assessment?.normGroup ?? "norm group"}
             </div>
           </div>
-          <div className="panel p-5">
-            <div className="text-sm font-semibold text-[var(--muted)]">Outcome</div>
+          <div className="panel stat">
+            <div className="stat-label">Outcome</div>
             <div className="mt-2">
               {attempt.passed === null ? (
-                <span className="tag">Pending assessor review</span>
+                <span className="tag tag-dot">Pending assessor review</span>
               ) : attempt.passed ? (
-                <span className="tag tag-good">Passed</span>
+                <span className="tag tag-good tag-dot">Passed</span>
               ) : (
-                <span className="tag tag-bad">Not passed</span>
+                <span className="tag tag-bad tag-dot">Not passed</span>
               )}
             </div>
           </div>
         </section>
         {breakdown.length > 0 && (
           <section className="panel mt-6 p-5">
-            <h2 className="text-base font-semibold">Competency breakdown</h2>
+            <div className="section-head">
+              <h2 className="text-[0.98rem] font-semibold tracking-tight">
+                Competency breakdown
+              </h2>
+              <span className="text-xs text-[var(--faint)]">
+                graded items only
+              </span>
+            </div>
             <ul className="mt-4 space-y-3">
               {breakdown.map(([compId, score]) => (
                 <li key={compId}>
@@ -85,15 +92,20 @@ export default async function ResultPage({
                     <span className="font-semibold tabular-nums">{score}%</span>
                   </div>
                   <div
-                    className="mt-1 h-2 overflow-hidden rounded-full bg-black/10"
+                    className={`meter mt-1.5 ${
+                      score >= 70
+                        ? "meter-good"
+                        : score >= 40
+                          ? "meter-warn"
+                          : "meter-bad"
+                    }`}
                     role="progressbar"
                     aria-valuenow={score}
                     aria-valuemin={0}
                     aria-valuemax={100}
                     aria-label={`${nameById.get(compId) ?? compId} score`}
                   >
-                    <div
-                      className="h-full rounded-full bg-[var(--accent)]"
+                    <span
                       style={{ width: `${Math.max(0, Math.min(100, score))}%` }}
                     />
                   </div>

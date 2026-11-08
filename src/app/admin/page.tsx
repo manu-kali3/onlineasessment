@@ -21,27 +21,50 @@ export default async function AdminPage() {
   return (
     <main className="min-h-dvh">
       <TopBar name={user.fullName} role={user.role} nav={adminNav} />
-      <div className="mx-auto max-w-6xl px-6 py-8">
-        <h1 className="text-2xl font-bold tracking-tight">Recruiter overview</h1>
-        <p className="mt-1 text-sm text-[var(--muted)]">
+      <div className="shell">
+        <h1 className="page-title">Recruiter overview</h1>
+        <p className="page-sub">
           Live pipeline across{" "}
           {data.counts.published} published assessments
           {data.normGroup ? ` · normed against ${data.normGroup}` : ""}.
         </p>
-        <section className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-          <StatCard label="Published tests" value={data.counts.published} />
-          <StatCard label="In progress" value={data.counts.inProgress} />
-          <StatCard label="Awaiting review" value={data.counts.awaitingReview} />
-          <StatCard label="Flagged" value={data.counts.flagged} tone="bad" />
+        <section className="mt-7 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+          <StatCard
+            label="Published tests"
+            value={data.counts.published}
+            hint="live and accepting attempts"
+          />
+          <StatCard
+            label="In progress"
+            value={data.counts.inProgress}
+            hint="attempts under way now"
+          />
+          <StatCard
+            label="Awaiting review"
+            value={data.counts.awaitingReview}
+            tone={data.counts.awaitingReview > 0 ? "accent" : "neutral"}
+            hint="subjective items to grade"
+          />
+          <StatCard
+            label="Flagged"
+            value={data.counts.flagged}
+            tone={data.counts.flagged > 0 ? "bad" : "good"}
+            hint={data.counts.flagged > 0 ? "integrity below 90" : "all clear"}
+          />
           <StatCard
             label="Avg score"
             value={data.averageScore !== null ? `${data.averageScore}%` : "—"}
+            hint="graded attempts only"
           />
         </section>
         <div className="mt-6 grid gap-4 lg:grid-cols-5">
           <section className="panel p-5 lg:col-span-3">
-            <h2 className="text-base font-semibold">Assessment performance</h2>
-            <TableWrap className="mt-3">
+            <div className="section-head">
+              <h2 className="text-[0.98rem] font-semibold tracking-tight">
+                Assessment performance
+              </h2>
+            </div>
+            <TableWrap className="mt-3" label="Assessment performance">
 
                 <table className="table">
                   <thead>

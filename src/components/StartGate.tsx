@@ -54,18 +54,21 @@ export default function StartGate({
   return (
     <div className="space-y-4">
       {requiresProctoring && (
-        <div className="panel p-5">
-          <h2 className="text-base font-semibold">Monitoring consent</h2>
+        <div className="panel border-[color-mix(in_srgb,var(--warn)_30%,transparent)] p-5">
+          <h2 className="flex items-center gap-2 text-[0.98rem] font-semibold tracking-tight">
+            <span className="tag tag-warn tag-dot">Proctored</span>
+            Monitoring consent
+          </h2>
           <p className="mt-1 text-sm text-[var(--muted)]">
             This assessment is proctored. A webcam feed and screen recording are
             analysed for integrity signals such as a second person entering frame
             or leaving the test window. Recordings are retained for a limited
             period and reviewed only if the system flags an issue.
           </p>
-          <label className="mt-3 flex items-start gap-2 text-sm">
+          <label className="mt-3 flex items-start gap-2.5 text-sm">
             <input
               type="checkbox"
-              className="mt-1"
+              className="mt-0.5 h-4 w-4 accent-[var(--accent)]"
               checked={consented}
               onChange={(e) => setConsented(e.target.checked)}
             />
@@ -75,26 +78,33 @@ export default function StartGate({
       )}
 
       {error && (
-        <p role="alert" className="tag tag-bad inline-block">
-          {error}
-        </p>
+        <div role="alert" className="banner banner-bad">
+          <span className="font-medium">{error}</span>
+        </div>
       )}
 
       {resume && (
-        <div className="panel p-5 text-sm text-[var(--muted)]">
-          This attempt is already in progress. Resuming returns you to where you
-          left off; the timer does not reset.
+        <div className="banner banner-warn">
+          <span>
+            <span className="font-semibold">Attempt in progress.</span>{" "}
+            Resuming returns you to where you left off — the timer does not
+            reset.
+          </span>
         </div>
       )}
 
       <div className="panel p-5">
-        <p className="text-sm text-[var(--muted)]">
-          Timer: <strong>{durationMin} minutes</strong>
+        <p className="text-sm leading-relaxed text-[var(--muted)]">
+          Timer: <strong className="text-[var(--ink)]">{durationMin} minutes</strong>
           {extensionPct > 0 &&
             ` (${baseDurationMin} min plus a ${extensionPct}% approved extension)`}
           . Pressing start freezes the clock and enables integrity monitoring.
         </p>
-        <button className="btn btn-primary mt-4" disabled={!canStart} onClick={() => void begin()}>
+        <button
+          className="btn btn-primary btn-lg mt-4 w-full sm:w-auto"
+          disabled={!canStart || starting}
+          onClick={() => void begin()}
+        >
           {starting
             ? "Starting…"
             : resume

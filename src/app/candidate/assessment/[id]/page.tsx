@@ -41,13 +41,9 @@ export default async function AssessmentStartPage({
         role={user.role}
         nav={[{ href: "/candidate", label: "My assessments" }]}
       />
-      <main className="mx-auto max-w-3xl px-6 py-8">
-        <h1 className="text-2xl font-bold tracking-tight">
-          {assessment.title}
-        </h1>
-        <p className="mt-1 text-sm text-[var(--muted)]">
-          {assessment.description}
-        </p>
+      <main className="mx-auto w-full max-w-3xl px-4 pt-7 pb-16 sm:px-6">
+        <h1 className="page-title">{assessment.title}</h1>
+        <p className="page-sub">{assessment.description}</p>
         <div className="mt-5">
           <AccessibilityControls />
         </div>

@@ -28,8 +28,8 @@ export default async function IntegrationsPage() {
   return (
     <main className="min-h-dvh">
       <TopBar name={user.fullName} role={user.role} nav={adminNav} />
-      <div className="mx-auto max-w-6xl px-6 py-8">
-        <h1 className="text-2xl font-bold tracking-tight">ATS integrations</h1>
+      <div className="shell">
+        <h1 className="page-title">ATS integrations</h1>
         <p className="mt-1 text-sm text-[var(--muted)]">
           When a candidate finishes an assessment, the result is pushed to the ATS
           so it lands on their profile without manual re-entry.

@@ -13,13 +13,13 @@ function statusTag(status: string) {
   switch (status) {
     case "submitted":
     case "graded":
-      return <span className="tag tag-good">{status}</span>;
+      return <span className="tag tag-good tag-dot">{status}</span>;
     case "in_progress":
-      return <span className="tag tag-warn">In progress</span>;
+      return <span className="tag tag-warn tag-dot">In progress</span>;
     case "expired":
-      return <span className="tag tag-bad">Expired</span>;
+      return <span className="tag tag-bad tag-dot">Expired</span>;
     default:
-      return <span className="tag">Not started</span>;
+      return <span className="tag tag-dot">Not started</span>;
   }
 }
 function fmtDeadline(d: Date) {
@@ -38,9 +38,9 @@ export default async function CandidateDashboard() {
           { href: "/candidate", label: "My assessments" },
           { href: "/candidate/courses", label: "Browse courses" },
         ]} />
-      <main className="mx-auto max-w-6xl px-6 py-8">
-        <h1 className="text-2xl font-bold tracking-tight">Your assessments</h1>
-        <p className="mt-1 text-sm text-[var(--muted)]">
+      <main className="shell">
+        <h1 className="page-title">Your assessments</h1>
+        <p className="page-sub">
           Hi {user.fullName.split(" ")[0]}. Each assessment has its own deadline and
           timer. Your progress saves automatically.
         </p>
@@ -58,18 +58,30 @@ export default async function CandidateDashboard() {
         </div>
         <section className="mt-6 grid gap-4">
           {invitations.length === 0 && (
-            <div className="panel p-6 text-sm text-[var(--muted)]">
-              No assessments have been assigned to you yet.
+            <div className="empty">
+              <span aria-hidden="true" className="text-[var(--faint)]">
+                <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3.5" y="5" width="17" height="14" rx="2" />
+                  <path d="M3.5 9.5h17M8 13h8M8 16h5" />
+                </svg>
+              </span>
+              <span>
+                No assessments have been assigned to you yet — browse the{" "}
+                <Link href="/candidate/courses" className="link">
+                  course catalog
+                </Link>{" "}
+                to enrol in one.
+              </span>
             </div>
           )}
           {invitations.map((inv) => {
             const expired = inv.expiresAt.getTime() < Date.now();
             const closed = inv.status === "submitted" || inv.status === "graded";
             return (
-              <article key={inv.id} className="panel p-5">
+              <article key={inv.id} className="panel p-5 transition-shadow hover:shadow-[var(--shadow-md)]">
                 <div className="flex flex-wrap items-start justify-between gap-4">
                   <div className="min-w-0">
-                    <h2 className="text-lg font-semibold">
+                    <h2 className="text-[1.05rem] font-semibold tracking-tight">
                       {inv.assessment.title}
                     </h2>
                     <p className="mt-1 max-w-2xl text-sm text-[var(--muted)]">
@@ -90,7 +102,13 @@ export default async function CandidateDashboard() {
                       {inv.assessment.requireProctoring && (
                         <span className="tag tag-warn">Proctored</span>
                       )}
-                      <span>
+                      <span className="inline-flex items-center gap-1.5 tabular-nums">
+                        <span aria-hidden="true" className="text-[var(--faint)]">
+                          <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+                            <rect x="3.5" y="5" width="17" height="15" rx="2" />
+                            <path d="M8 3.5v3M16 3.5v3M3.5 10h17" />
+                          </svg>
+                        </span>
                         Due {fmtDeadline(inv.expiresAt)}
                       </span>
                       {statusTag(inv.status)}
@@ -99,8 +117,10 @@ export default async function CandidateDashboard() {
                   <div className="flex shrink-0 items-center gap-3">
                     {inv.score !== null && (
                       <div className="text-right">
-                        <div className="text-2xl font-bold">{inv.score}%</div>
-                        <div className="text-xs text-[var(--muted)]">
+                        <div className="text-[1.6rem] leading-none font-bold tabular-nums tracking-tight">
+                          {inv.score}%
+                        </div>
+                        <div className="mt-1 text-[0.7rem] text-[var(--muted)]">
                           {inv.percentile !== null
                             ? `${inv.percentile}th percentile`
                             : "Score"}
