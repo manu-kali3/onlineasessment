@@ -37,8 +37,7 @@ yarn-error.log*
 .env.local
 .env.*.local
 
-# never commit real secrets; keep the template
-!.env.example
+# never commit real secrets — env files are created by hand, no template
 
 # vercel
 .vercel

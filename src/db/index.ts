@@ -40,7 +40,7 @@ export { schema };
 export function requireDatabase() {
   if (!hasDatabase) {
     throw new Error(
-      "DATABASE_URL is not configured. Add your Neon connection string to .env.local (see .env.example).",
+      "DATABASE_URL is not configured. Add your Neon connection string to .env.local.",
     );
   }
 }
