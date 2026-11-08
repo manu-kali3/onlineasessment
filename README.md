@@ -20,13 +20,30 @@ Built with **Next.js 16 (App Router) + React 19**, **Postgres on Neon**, and
 
 ```bash
 npm install
-cp .env.example .env.local     # put your DATABASE_URL here
+# create .env.local yourself and set DATABASE_URL (see "Environment" below)
 npm run db:push                # create tables from the schema
 npm run db:seed                # questions, assessments, competencies
 npm run dev
 ```
 
 Open http://localhost:3000.
+
+### Environment
+
+There is no committed env template, so create `.env.local` by hand. These are
+the variables the app reads (`src/lib/env.ts` is the source of truth):
+
+| Variable | Required | Purpose |
+| --- | --- | --- |
+| `DATABASE_URL` | yes | Neon Postgres connection string (`?sslmode=require`) |
+| `AUTH_SECRET` | production | Signs session JWTs; a dev default is used locally |
+| `NEXT_PUBLIC_APP_URL` | no | Public origin for emailed links; a localhost value is distrusted and replaced by `VERCEL_URL` / the request host |
+| `ATS_WEBHOOK_SECRET`, `PROCTORING_WEBHOOK_SECRET` | no | Integration callbacks |
+| `PAYHERO_USERNAME`, `PAYHERO_PASSWORD`, `PAYHERO_ACCOUNT_ID`, `PAYHERO_AUTH_TOKEN`, `PAYHERO_CHANNEL_ID` | for payments | M-Pesa STK push; checkout is hidden without `PAYHERO_CHANNEL_ID` |
+| `RESEND_API_KEY`, `RESEND_FROM` | for email | Verification and reset mail; without the key mail is only logged |
+
+`BYPASS_PAYWALL` is not read by the code any more — access is decided per course
+by `canAccessCourse`, not by a global switch.
 
 ### Accounts
 
@@ -513,7 +530,8 @@ echo 'your-password-here' | npm run db:set-password you@example.com
 
 ## Security notes
 
-- `.env*` is gitignored; only `.env.example` is tracked. Keep the Neon URL and
+- `.env*` is gitignored, including any template, so `.env.local` is created by
+  hand and never committed. Keep the Neon URL and
   the Resend key local, and rotate either if it is ever exposed. The Resend key
   was pasted into this session, so treat it as compromised and rotate it in the
   Resend dashboard before going live.
