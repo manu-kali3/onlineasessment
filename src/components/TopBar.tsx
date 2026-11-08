@@ -70,14 +70,20 @@ export function TopBar({
     href === "/" ? pathname === "/" : pathname.startsWith(href);
 
   return (
-    <header className="sticky top-0 z-30 border-b border-[var(--line)] bg-[var(--panel)]">
+    <header className="sticky top-0 z-30 border-b border-[var(--line)] bg-[color-mix(in_srgb,var(--panel)_82%,transparent)] backdrop-blur-md">
       <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-3 sm:px-6">
         <Link
           href="/"
-          className="shrink-0 text-sm font-bold tracking-tight"
+          className="flex shrink-0 items-center gap-2.5 text-sm font-bold tracking-tight"
           aria-label="Assessment Center home"
         >
-          Assessment Center
+          <span
+            aria-hidden="true"
+            className="grid h-7 w-7 place-items-center rounded-[9px] bg-[var(--accent)] text-[13px] font-black text-[var(--accent-ink)] shadow-[var(--shadow-sm)]"
+          >
+            A
+          </span>
+          <span className="hidden sm:inline">Assessment Center</span>
         </Link>
 
         {/* Desktop navigation */}
@@ -87,21 +93,30 @@ export function TopBar({
               key={item.href}
               href={item.href}
               aria-current={isActive(item.href) ? "page" : undefined}
-              className={`rounded-md px-3 py-1.5 text-sm font-medium transition ${
+              className={`relative rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
                 isActive(item.href)
-                  ? "bg-black/5 text-[var(--ink)]"
-                  : "text-[var(--muted)] hover:bg-black/5 hover:text-[var(--ink)]"
+                  ? "text-[var(--ink)]"
+                  : "text-[var(--muted)] hover:bg-[var(--accent-soft)] hover:text-[var(--accent)]"
               }`}
             >
               {item.label}
+              {isActive(item.href) && (
+                <span
+                  aria-hidden="true"
+                  className="absolute inset-x-2 -bottom-[13px] h-[2px] rounded-full bg-[var(--accent)]"
+                />
+              )}
             </Link>
           ))}
         </nav>
 
         <div className="ml-auto hidden items-center gap-3 md:flex">
-          <span className="tag capitalize">{role}</span>
+          <span className="tag tag-accent capitalize">{role}</span>
           <span className="text-sm font-medium">{name}</span>
-          <button onClick={logout} className="btn btn-ghost !py-1 !px-2 !text-xs">
+          <button
+            onClick={logout}
+            className="btn btn-quiet btn-sm border border-[var(--line-strong)]"
+          >
             Sign out
           </button>
         </div>
@@ -114,7 +129,7 @@ export function TopBar({
           aria-expanded={open}
           aria-controls="mobile-nav"
           aria-label={open ? "Close menu" : "Open menu"}
-          className="btn btn-ghost ml-auto !px-2 md:hidden"
+          className="btn btn-ghost btn-sm ml-auto !px-2 md:hidden"
         >
           <span aria-hidden="true" className="relative block h-4 w-5">
             <span
@@ -141,7 +156,7 @@ export function TopBar({
         <div
           id="mobile-nav"
           ref={panelRef}
-          className="border-t border-[var(--line)] bg-[var(--panel)] md:hidden"
+          className="border-t border-[var(--line)] bg-[var(--panel)] shadow-[var(--shadow-lg)] md:hidden"
         >
           <nav aria-label="Mobile" className="mx-auto max-w-6xl px-4 py-3 sm:px-6">
             <ul className="flex flex-col">
@@ -150,13 +165,19 @@ export function TopBar({
                   <Link
                     href={item.href}
                     aria-current={isActive(item.href) ? "page" : undefined}
-                    className={`block rounded-md px-3 py-3 text-base font-medium ${
+                    className={`flex items-center justify-between rounded-md px-3 py-3 text-base font-medium transition-colors ${
                       isActive(item.href)
-                        ? "bg-black/5 text-[var(--ink)]"
-                        : "text-[var(--muted)]"
+                        ? "bg-[var(--accent-soft)] text-[var(--accent)]"
+                        : "text-[var(--muted)] hover:bg-[var(--panel-2)]"
                     }`}
                   >
                     {item.label}
+                    {isActive(item.href) && (
+                      <span
+                        aria-hidden="true"
+                        className="h-1.5 w-1.5 rounded-full bg-[var(--accent)]"
+                      />
+                    )}
                   </Link>
                 </li>
               ))}
@@ -165,9 +186,12 @@ export function TopBar({
             <div className="mt-3 flex items-center justify-between gap-3 border-t border-[var(--line)] pt-3">
               <div className="min-w-0">
                 <p className="truncate text-sm font-medium">{name}</p>
-                <span className="tag mt-1 capitalize">{role}</span>
+                <span className="tag tag-accent mt-1 capitalize">{role}</span>
               </div>
-              <button onClick={logout} className="btn btn-ghost !text-sm">
+              <button
+                onClick={logout}
+                className="btn btn-ghost btn-sm border border-[var(--line-strong)]"
+              >
                 Sign out
               </button>
             </div>

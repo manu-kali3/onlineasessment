@@ -21,9 +21,9 @@ export default async function AnalyticsPage() {
   return (
     <main className="min-h-dvh">
       <TopBar name={user.fullName} role={user.role} nav={adminNav} />
-      <div className="mx-auto max-w-6xl px-6 py-8">
-        <h1 className="text-2xl font-bold tracking-tight">Assessment analytics</h1>
-        <p className="mt-1 text-sm text-[var(--muted)]">
+      <div className="shell">
+        <h1 className="page-title">Assessment analytics</h1>
+        <p className="page-sub">
           {user.role === "admin"
             ? "Admin view: candidate identities are visible."
             : "Blind review is active. Candidates appear as pseudonyms until the review phase closes."}

@@ -167,31 +167,58 @@ export default function TestRunner({
 
   return (
     <main className="min-h-dvh">
-      <header className="sticky top-0 z-10 border-b border-[var(--line)] bg-[var(--panel)]">
-        <div className="mx-auto flex max-w-4xl flex-wrap items-center gap-3 px-6 py-3">
+      <header className="sticky top-0 z-10 border-b border-[var(--line)] bg-[color-mix(in_srgb,var(--panel)_88%,transparent)] backdrop-blur-md">
+        <div className="mx-auto flex max-w-4xl flex-wrap items-center gap-3 px-4 py-2.5 sm:px-6">
           <h1 className="text-sm font-bold tracking-tight">{title}</h1>
-          <span className="tag">{answeredCount}/{questions.length} answered</span>
+          <span className="tag">
+            {answeredCount}/{questions.length} answered
+          </span>
           <div className="ml-auto flex items-center gap-3">
+            {/*
+              The countdown is the one number a candidate checks constantly, so
+              it gets a bordered chip and turns red for the last five minutes.
+              aria-live is on the chip, not the digits, so it is announced as a
+              whole rather than on every tick.
+            */}
             <span
-              className={`font-mono text-lg font-bold tabular-nums ${
-                remaining < 300 ? "text-[var(--bad)]" : ""
+              className={`inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 font-mono text-base font-bold tabular-nums transition-colors ${
+                remaining < 300
+                  ? "border-[color-mix(in_srgb,var(--bad)_35%,transparent)] bg-[var(--bad-soft)] text-[var(--bad)]"
+                  : "border-[var(--line)] bg-[var(--panel-2)] text-[var(--ink)]"
               }`}
               aria-live="polite"
               aria-label={`${Math.floor(remaining / 60)} minutes remaining`}
             >
+              <span aria-hidden="true" className="text-[var(--faint)]">
+                <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="8.5" />
+                  <path d="M12 7.5V12l3 1.8" />
+                </svg>
+              </span>
               {fmtCountdown(remaining)}
             </span>
             <SaveIndicator state={saveState} />
           </div>
         </div>
+        {/* Slim progress rail: answers given against items total. */}
+        <div
+          aria-hidden="true"
+          className="h-0.5 w-full bg-[var(--line)]"
+        >
+          <div
+            className="h-full bg-[var(--accent)] transition-[width] duration-300"
+            style={{ width: `${(answeredCount / Math.max(1, questions.length)) * 100}%` }}
+          />
+        </div>
       </header>
 
-      <div className="mx-auto max-w-4xl px-6 py-6">
+      <div className="mx-auto w-full max-w-4xl px-4 py-5 sm:px-6">
         <ProctorLock attemptId={attemptId} proctoring={proctoring} />
 
         <div className="mt-4 flex items-center justify-between">
-          <span className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">
-            Question {index + 1} of {questions.length}
+          <span className="eyebrow">
+            Question {index + 1}{" "}
+            <span className="text-[var(--faint)]">of {questions.length}</span>
           </span>
           <div className="flex items-center gap-2">
             {current && (
@@ -199,7 +226,11 @@ export default function TestRunner({
             )}
             <button
               type="button"
-              className="btn btn-ghost !py-1 !px-2 !text-xs"
+              className={`btn btn-sm ${
+                flagged.has(current?.id)
+                  ? "btn-primary"
+                  : "btn-ghost"
+              }`}
               onClick={() =>
                 setFlagged((prev) => {
                   const next = new Set(prev);
@@ -215,7 +246,7 @@ export default function TestRunner({
         </div>
 
         <div
-          className={`panel mt-3 p-6 ${highContrast ? "border-2 border-black" : ""}`}
+          className={`panel mt-3 p-5 shadow-[var(--shadow-md)] sm:p-6 ${highContrast ? "border-2 border-black" : ""}`}
           data-allow-copy="true"
         >
           <QuestionInput
@@ -225,7 +256,7 @@ export default function TestRunner({
           />
         </div>
 
-        <nav className="mt-5 flex items-center justify-between">
+        <nav className="mt-5 flex items-center justify-between gap-3">
           <button
             className="btn btn-ghost"
             onClick={() => void goTo(index - 1)}
@@ -233,6 +264,9 @@ export default function TestRunner({
           >
             ← Previous
           </button>
+          <span className="text-xs tabular-nums text-[var(--faint)] sm:hidden">
+            {index + 1} / {questions.length}
+          </span>
           <button
             className="btn btn-primary"
             onClick={() => void goTo(index + 1)}
@@ -243,7 +277,13 @@ export default function TestRunner({
         </nav>
 
         <section className="panel mt-6 p-5">
-          <h2 className="text-sm font-semibold">Review all questions</h2>
+          <div className="section-head">
+            <h2 className="text-sm font-semibold">Review all questions</h2>
+            <span className="text-xs text-[var(--faint)]">
+              <span className="text-[var(--good)]">●</span> answered{" "}
+              <span className="text-[var(--warn)]">*</span> flagged
+            </span>
+          </div>
           <ol className="mt-3 flex flex-wrap gap-2">
             {questions.map((q, i) => {
               const a = answers[q.id];
@@ -254,16 +294,23 @@ export default function TestRunner({
                   <button
                     onClick={() => void goTo(i)}
                     aria-current={i === index}
-                    className={`h-9 w-9 rounded-md border text-sm font-semibold ${
+                    className={`relative h-9 w-9 rounded-md border text-sm font-semibold tabular-nums transition-colors ${
                       i === index
-                        ? "border-[var(--accent)] text-[var(--accent)]"
+                        ? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-ink)]"
                         : done
-                          ? "border-[var(--good)] bg-[color-mix(in_srgb,var(--good)_10%,transparent)]"
-                          : "border-[var(--line)] text-[var(--muted)]"
+                          ? "border-[color-mix(in_srgb,var(--good)_40%,transparent)] bg-[var(--good-soft)] text-[var(--good)]"
+                          : "border-[var(--line-strong)] text-[var(--muted)] hover:border-[var(--muted)]"
                     }`}
                   >
                     {i + 1}
-                    {flagged.has(q.id) && <span aria-label="flagged">*</span>}
+                    {flagged.has(q.id) && (
+                      <span
+                        aria-label="flagged"
+                        className="absolute -top-1 -right-1 grid h-3.5 w-3.5 place-items-center rounded-full bg-[var(--warn)] text-[9px] leading-none font-bold text-white"
+                      >
+                        !
+                      </span>
+                    )}
                   </button>
                 </li>
               );
@@ -288,14 +335,26 @@ export default function TestRunner({
       </div>
 
       {confirming && (
-        <div className="fixed inset-0 z-20 flex items-center justify-center bg-black/40 p-6">
-          <div className="panel w-full max-w-md p-6">
-            <h2 className="text-lg font-bold">Submit now?</h2>
+        <div
+          className="fixed inset-0 z-20 flex items-center justify-center bg-[rgba(16,19,34,0.45)] p-4 backdrop-blur-[2px]"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setConfirming(false);
+          }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="submit-title"
+            className="panel w-full max-w-md p-6 shadow-[var(--shadow-lg)]"
+          >
+            <h2 id="submit-title" className="text-lg font-bold tracking-tight">
+              Submit now?
+            </h2>
             <p className="mt-2 text-sm text-[var(--muted)]">
               You answered {answeredCount} of {questions.length} questions. Once
               submitted you cannot change your answers.
             </p>
-            <div className="mt-5 flex gap-3">
+            <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
               <button
                 className="btn btn-ghost"
                 onClick={() => setConfirming(false)}
@@ -318,9 +377,19 @@ export default function TestRunner({
 }
 
 function SaveIndicator({ state }: { state: string }) {
-  if (state === "saving") return <span className="text-xs text-[var(--muted)]">Saving…</span>;
-  if (state === "saved") return <span className="text-xs tag tag-good">Saved</span>;
-  if (state === "error") return <span className="text-xs tag tag-bad">Save failed</span>;
+  if (state === "saving")
+    return (
+      <span className="flex items-center gap-1.5 text-xs text-[var(--muted)]">
+        <span
+          aria-hidden="true"
+          className="h-2.5 w-2.5 animate-spin rounded-full border-[1.5px] border-current border-t-transparent"
+        />
+        Saving…
+      </span>
+    );
+  if (state === "saved")
+    return <span className="tag tag-good tag-dot">Saved</span>;
+  if (state === "error") return <span className="tag tag-bad tag-dot">Save failed</span>;
   return null;
 }
 
@@ -342,8 +411,10 @@ function QuestionInput({
   if (question.type === "multiple_choice" || question.type === "true_false") {
     return (
       <fieldset className="space-y-2">
-        <legend className="text-base font-medium text-balance">{question.prompt}</legend>
-        <div className="mt-4 space-y-2">
+        <legend className="text-[1.05rem] leading-relaxed font-medium text-balance">
+          {question.prompt}
+        </legend>
+        <div className="mt-5 space-y-2.5">
           {question.options.length === 0 && question.type === "true_false" && (
             <>
               <Choice label="True" checked={value === true} onChange={() => onChange(true)} />
@@ -367,9 +438,11 @@ function QuestionInput({
     const selected = Array.isArray(value) ? (value as string[]) : [];
     return (
       <fieldset className="space-y-2">
-        <legend className="text-base font-medium text-balance">{question.prompt}</legend>
+        <legend className="text-[1.05rem] leading-relaxed font-medium text-balance">
+          {question.prompt}
+        </legend>
         <p className="text-xs text-[var(--muted)]">Select all that apply.</p>
-        <div className="mt-3 space-y-2">
+        <div className="mt-4 space-y-2.5">
           {question.options.map((opt) => (
             <Choice
               key={opt.id}
@@ -397,14 +470,14 @@ function QuestionInput({
         : question.codingSpec?.starterCode ?? "";
     return (
       <div>
-        <p className="text-base font-medium text-balance">{question.prompt}</p>
+        <p className="text-[1.05rem] leading-relaxed font-medium text-balance">{question.prompt}</p>
         <p className="mt-1 text-xs text-[var(--muted)]">
           Language: {question.codingSpec?.language}. Your code is compiled and
           tested against {question.codingSpec?.testCases.length ?? 0} cases on submit.
         </p>
         <textarea
           data-allow-copy="true"
-          className="input mt-4 min-h-64 font-mono text-sm"
+          className="input mt-4 min-h-64 font-mono text-sm leading-relaxed"
           spellCheck={false}
           value={code}
           onChange={(e) =>
@@ -419,7 +492,7 @@ function QuestionInput({
     const hasRecording = typeof value === "string" && value.startsWith("blob:");
     return (
       <div>
-        <p className="text-base font-medium text-balance">{question.prompt}</p>
+        <p className="text-[1.05rem] leading-relaxed font-medium text-balance">{question.prompt}</p>
         <p className="mt-1 text-xs text-[var(--muted)]">
           Record up to 3 minutes. A human assessor scores this against the rubric.
         </p>
@@ -452,14 +525,14 @@ function QuestionInput({
     <div>
       <label
         htmlFor={`q-${question.id}`}
-        className="text-base font-medium text-balance"
+        className="block text-[1.05rem] leading-relaxed font-medium text-balance"
       >
         {question.prompt}
       </label>
       <textarea
         id={`q-${question.id}`}
         data-allow-copy="true"
-        className="input mt-4 min-h-52"
+        className="input mt-4 min-h-52 leading-relaxed"
         value={typeof value === "string" ? value : ""}
         onChange={(e) => onChange(e.target.value)}
       />
@@ -483,10 +556,10 @@ function Choice({
 }) {
   return (
     <label
-      className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition ${
+      className={`flex cursor-pointer items-start gap-3 rounded-[10px] border p-3.5 transition-all duration-150 ${
         checked
-          ? "border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_6%,transparent)]"
-          : "border-[var(--line)] hover:bg-black/[0.02]"
+          ? "border-[var(--accent)] bg-[var(--accent-soft)] shadow-[0_0_0_1px_var(--accent-line)]"
+          : "border-[var(--line-strong)] hover:border-[var(--muted)] hover:bg-[var(--panel-2)]"
       }`}
     >
       <input
@@ -494,9 +567,15 @@ function Choice({
         name={label}
         checked={checked}
         onChange={onChange}
-        className="mt-0.5"
+        className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--accent)]"
       />
-      <span className="text-sm">{label}</span>
+      <span
+        className={`text-sm leading-relaxed ${
+          checked ? "font-medium text-[var(--ink)]" : ""
+        }`}
+      >
+        {label}
+      </span>
     </label>
   );
 }

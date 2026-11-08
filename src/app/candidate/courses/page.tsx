@@ -25,9 +25,9 @@ export default async function CourseCatalogPage() {
         ]}
       />
 
-      <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
-        <h1 className="text-2xl font-bold tracking-tight">Available courses</h1>
-        <p className="mt-1 text-sm text-[var(--muted)]">
+      <main className="shell">
+        <h1 className="page-title">Available courses</h1>
+        <p className="page-sub">
           Every published course. Free ones start straight away; paid ones ask for
           payment before you begin.
         </p>
@@ -37,9 +37,15 @@ export default async function CourseCatalogPage() {
         </div>
 
         {courses.length === 0 && (
-          <p className="mt-6 rounded-md border border-dashed border-[var(--line)] p-6 text-sm text-[var(--muted)]">
-            No courses are published yet.
-          </p>
+          <div className="empty mt-6">
+            <span aria-hidden="true" className="text-[var(--faint)]">
+              <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M4 6.5A2 2 0 0 1 6 4.5h5v15H6a2 2 0 0 1-2-2z" />
+                <path d="M20 6.5a2 2 0 0 0-2-2h-5v15h5a2 2 0 0 0 2-2z" />
+              </svg>
+            </span>
+            <span>No courses are published yet. Check back shortly.</span>
+          </div>
         )}
 
         <section className="mt-6 grid gap-4">
@@ -49,10 +55,15 @@ export default async function CourseCatalogPage() {
               c.attemptStatus === "submitted" || c.attemptStatus === "graded";
 
             return (
-              <article key={c.id} className="panel p-5">
+              <article
+                key={c.id}
+                className="panel p-5 transition-shadow hover:shadow-[var(--shadow-md)]"
+              >
                 <div className="flex flex-wrap items-start justify-between gap-4">
                   <div className="min-w-0">
-                    <h2 className="text-lg font-semibold">{c.title}</h2>
+                    <h2 className="text-[1.05rem] font-semibold tracking-tight">
+                      {c.title}
+                    </h2>
                     <p className="mt-1 max-w-2xl text-sm text-[var(--muted)]">
                       {c.description}
                     </p>

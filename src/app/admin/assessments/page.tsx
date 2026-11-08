@@ -66,8 +66,8 @@ export default async function AssessmentsPage() {
     <main className="min-h-dvh">
       <TopBar name={user.fullName} role={user.role} nav={adminNav} />
 
-      <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
-        <h1 className="text-2xl font-bold tracking-tight">Test authoring</h1>
+      <div className="shell">
+        <h1 className="page-title">Test authoring</h1>
         <p className="mt-1 text-sm text-[var(--muted)]">
           Build courses from your own questions, and set each one free or paid.
           Candidates pay only for the course they enrol in.

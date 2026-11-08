@@ -27,18 +27,18 @@ export default async function AttemptDetailPage({
   return (
     <main className="min-h-dvh">
       <TopBar name={user.fullName} role={user.role} nav={adminNav} />
-      <div className="mx-auto max-w-5xl px-6 py-8">
-        <Link href="/admin/analytics" className="btn btn-ghost !py-1 !px-2 !text-xs">
+      <div className="mx-auto w-full max-w-5xl px-4 pt-7 pb-16 sm:px-6">
+        <Link href="/admin/analytics" className="btn btn-quiet btn-sm -ml-2">
           ← Back to analytics
         </Link>
-        <h1 className="mt-4 text-2xl font-bold tracking-tight">
+        <h1 className="page-title mt-3">
           {detail.attempt.assessmentTitle}
         </h1>
-        <p className="mt-1 text-sm text-[var(--muted)]">
+        <p className="page-sub">
           {detail.attempt.candidate.fullName}
           {detail.attempt.blindReview && " · blind review active"}
         </p>
-        <section className="mt-5 grid gap-4 sm:grid-cols-4">
+        <section className="mt-5 grid gap-3 sm:grid-cols-4">
           <Tile label="Score" value={detail.attempt.score !== null ? `${detail.attempt.score}%` : "—"} />
           <Tile label="Percentile" value={detail.attempt.percentile ?? "—"} />
           <Tile label="Integrity" value={detail.attempt.integrityScore ?? "—"} />
@@ -164,11 +164,9 @@ export default async function AttemptDetailPage({
 }
 function Tile({ label, value }: { label: string; value: string | number }) {
   return (
-    <div className="panel p-4">
-      <div className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">
-        {label}
-      </div>
-      <div className="mt-1 text-2xl font-bold tabular-nums">{value}</div>
+    <div className="panel stat">
+      <div className="stat-label">{label}</div>
+      <div className="stat-value !text-[1.5rem]">{value}</div>
     </div>
   );
 }

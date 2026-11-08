@@ -79,13 +79,17 @@ export default function LoginForm() {
   }
 
   return (
-    <form onSubmit={submit} className="panel w-full max-w-sm p-6">
-      <h1 className="text-xl font-bold tracking-tight">Sign in</h1>
-      <p className="mt-1 text-sm text-[var(--muted)]">
+    <form
+      onSubmit={submit}
+      className="panel w-full p-6 shadow-[var(--shadow-lg)] sm:p-7"
+      noValidate
+    >
+      <h1 className="page-title !text-[1.6rem]">Sign in</h1>
+      <p className="page-sub !mt-1.5">
         Enter the email address your invitation was sent to.
       </p>
 
-      <div className="mt-5 space-y-4">
+      <div className="mt-6 space-y-4">
         <div>
           <label className="label" htmlFor="email">
             Email
@@ -117,29 +121,39 @@ export default function LoginForm() {
       </div>
 
       {notice && (
-        <p role="status" className="mt-4 tag tag-good inline-block">
-          {notice}
-        </p>
+        <div role="status" className="banner banner-good mt-4">
+          <span className="font-medium">{notice}</span>
+        </div>
       )}
 
       {error && (
-        <p
-          role="alert"
-          className="mt-4 rounded-md px-3 py-2 text-sm tag tag-bad"
-        >
-          {error}
-        </p>
+        <div role="alert" className="banner banner-bad mt-4">
+          <span aria-hidden="true" className="mt-0.5 shrink-0">
+            <svg
+              viewBox="0 0 24 24"
+              className="h-4 w-4"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+            >
+              <path d="M12 8v5M12 16.5h.01" />
+              <circle cx="12" cy="12" r="9" />
+            </svg>
+          </span>
+          <span className="font-medium">{error}</span>
+        </div>
       )}
 
       {unverifiedEmail && (
-        <div className="mt-4 rounded-lg border border-[var(--line)] p-4">
+        <div className="panel panel-2 panel-flat mt-4 border border-[var(--line)] p-4">
           <p className="text-sm font-semibold">Still waiting on your email?</p>
           <p className="mt-1 text-sm text-[var(--muted)]">
             Verification links expire after 60 minutes and are single-use.
           </p>
           <button
             type="button"
-            className="btn btn-ghost mt-3 w-full !py-2 !text-sm"
+            className="btn btn-ghost btn-sm mt-3 w-full !py-2"
             onClick={() => void resendVerification()}
             disabled={resending}
           >
@@ -158,21 +172,28 @@ export default function LoginForm() {
         </div>
       )}
 
-      <button className="btn btn-primary mt-5 w-full" disabled={busy}>
-        {busy ? "Signing in…" : "Sign in"}
+      <button className="btn btn-primary btn-lg mt-6 w-full" disabled={busy}>
+        {busy ? (
+          <>
+            <span
+              aria-hidden="true"
+              className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent"
+            />
+            Signing in…
+          </>
+        ) : (
+          "Sign in"
+        )}
       </button>
 
-      <div className="mt-4 flex items-center justify-between text-sm">
+      <div className="mt-5 flex items-center justify-between gap-3 text-sm">
         <Link
           href="/forgot-password"
-          className="text-[var(--muted)] hover:text-[var(--ink)]"
+          className="text-[var(--muted)] transition-colors hover:text-[var(--ink)]"
         >
           Forgot password?
         </Link>
-        <Link
-          href="/register"
-          className="font-semibold text-[var(--accent)]"
-        >
+        <Link href="/register" className="link">
           Create an account
         </Link>
       </div>
