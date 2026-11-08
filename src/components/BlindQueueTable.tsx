@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { TableWrap } from "./TableWrap";
+import { EmptyState, IdentityCell, PercentBar, StatusTag } from "./admin/ui";
 
 export type QueueRow = {
   candidateRef: string;
@@ -25,17 +26,23 @@ export default function BlindQueueTable({
 }) {
   if (rows.length === 0) {
     return (
-      <p className="mt-4 rounded-md border border-dashed border-[var(--line)] p-4 text-sm text-[var(--muted)]">
-        No submitted attempts yet.
-      </p>
+      <div className="mt-3">
+        <EmptyState>
+          No submitted attempts yet. Attempts land here as candidates submit.
+        </EmptyState>
+      </div>
     );
   }
 
   return (
     <>
       {blindReview && (
-        <p className="mt-2 text-xs tag tag-good inline-block">
-          Blind review on · identities hidden
+        <p className="banner banner-good mt-3 text-xs">
+          <span>
+            <span className="font-semibold">Blind review on.</span> Candidate
+            names, email addresses, and free-text answers are withheld from this
+            view.
+          </span>
         </p>
       )}
       <TableWrap className="mt-3" label="Submitted attempts">
@@ -45,7 +52,7 @@ export default function BlindQueueTable({
             <th>{showIdentity ? "Candidate" : "Reference"}</th>
             <th>Assessment</th>
             <th>Score</th>
-            <th>Percentile</th>
+            <th className="num">Percentile</th>
             <th>Status</th>
             <th />
           </tr>
@@ -53,25 +60,30 @@ export default function BlindQueueTable({
         <tbody>
           {rows.map((r) => (
             <tr key={r.attemptId}>
-              <td className="font-mono text-xs">
-                {showIdentity ? r.candidateName : r.candidateRef}
-              </td>
-              <td>{r.assessmentTitle}</td>
-              <td className="tabular-nums">
-                {r.score !== null ? `${r.score}%` : "—"}
-              </td>
-              <td className="tabular-nums">{r.percentile ?? "—"}</td>
               <td>
-                <span
-                  className={`tag ${r.needsReview ? "tag-warn" : "tag-good"}`}
-                >
-                  {r.needsReview ? "Review pending" : "Graded"}
-                </span>
+                <IdentityCell
+                  name={r.candidateName}
+                  pseudo={r.candidateRef}
+                  showIdentity={showIdentity}
+                />
+              </td>
+              <td className="text-[var(--muted)]">{r.assessmentTitle}</td>
+              <td>
+                <PercentBar value={r.score} tone="accent" />
+              </td>
+              <td className="num text-[var(--muted)]">
+                {r.percentile ?? "—"}
+              </td>
+              <td>
+                <StatusTag
+                  status={r.needsReview ? "submitted" : "graded"}
+                  label={r.needsReview ? "Review pending" : "Graded"}
+                />
               </td>
               <td className="text-right">
                 <Link
                   href={`/admin/attempts/${r.attemptId}`}
-                  className="btn btn-ghost !py-1 !px-2 !text-xs"
+                  className="btn btn-quiet btn-sm"
                 >
                   Open
                 </Link>
