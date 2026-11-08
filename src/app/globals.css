@@ -488,6 +488,10 @@ h3 {
   background: var(--bad);
 }
 
+.stat-warn::before {
+  background: var(--warn);
+}
+
 .stat-label {
   font-size: 0.7rem;
   font-weight: 700;
@@ -647,4 +651,150 @@ h3 {
   .btn:active:not(:disabled) {
     transform: none;
   }
+}
+
+/* ------------------------------------------------------------------ */
+/* Admin surface                                                       */
+/* ------------------------------------------------------------------ */
+
+/*
+ * Inline data bar for table cells: a value plus its own magnitude, so a
+ * column of percentages reads at a glance instead of needing to be compared
+ * number by number. Deliberately thin — it annotates the figure, it is not a
+ * chart, and it must not out-shout the numbers themselves.
+ */
+.mini-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 6.5rem;
+}
+
+.mini-bar-track {
+  flex: 1;
+  height: 5px;
+  min-width: 2.5rem;
+  border-radius: 999px;
+  background: var(--line);
+  overflow: hidden;
+}
+
+.mini-bar-fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--accent);
+}
+
+.mini-bar-fill.is-good {
+  background: var(--good);
+}
+
+.mini-bar-fill.is-warn {
+  background: var(--warn);
+}
+
+.mini-bar-fill.is-bad {
+  background: var(--bad);
+}
+
+.mini-bar-value {
+  font-variant-numeric: tabular-nums;
+  font-size: 0.8rem;
+  font-weight: 600;
+  min-width: 2.6rem;
+  text-align: right;
+}
+
+/* Monospace chip for confirmation codes, event names, and other identifiers
+   that are copied or eyeballed character by character. */
+.code {
+  display: inline-block;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
+    "Liberation Mono", monospace;
+  font-size: 0.78rem;
+  letter-spacing: 0.01em;
+  padding: 0.1rem 0.4rem;
+  border-radius: 5px;
+  border: 1px solid var(--line);
+  background: var(--panel-2);
+  color: var(--ink);
+  word-break: break-all;
+}
+
+/* Metadata strip: a row of label/value pairs used under a card title. */
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 1.25rem;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.meta > div {
+  display: flex;
+  align-items: baseline;
+  gap: 0.35rem;
+}
+
+.meta dt {
+  color: var(--faint);
+}
+
+.meta dd {
+  font-weight: 600;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Collapsible authoring panel. Native <details> keeps it keyboard accessible
+   and works without JavaScript, which matters on a page an admin may open on a
+   flaky connection. */
+/* Chrome still draws a disclosure triangle on <summary> unless it is removed
+   explicitly; list-style alone does not cover every engine. */
+summary::-webkit-details-marker {
+  display: none;
+}
+
+.summary-hint {
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--faint);
+}
+
+/* Chevron that rotates with the open state; aria state comes from <details>. */
+.summary-chevron {
+  transition: transform 160ms ease;
+  color: var(--faint);
+  flex: none;
+}
+
+details[open] .summary-chevron {
+  transform: rotate(180deg);
+}
+
+/* Two-column admin split that collapses to one column on narrow screens. */
+.split {
+  display: grid;
+  gap: 1rem;
+}
+
+@media (min-width: 1024px) {
+  .split-3-2 {
+    grid-template-columns: 3fr 2fr;
+  }
+
+  .split-2 {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* Card list used by queues: one decision per row, separated by hairlines. */
+.row-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.row-list > * + * {
+  border-top: 1px solid var(--line);
 }

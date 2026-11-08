@@ -1,33 +1,45 @@
 
+import Link from "next/link";
 import { requirePageUser } from "@/lib/page-auth";
 import { TopBar } from "@/components/TopBar";
 import { loadRecruiterDashboard } from "@/lib/queries";
 import StatCard from "@/components/StatCard";
 import RiskQueue from "@/components/RiskQueue";
 import { TableWrap } from "@/components/TableWrap";
+import { adminNav } from "@/lib/admin-nav";
+import {
+  EmptyRow,
+  IdentityCell,
+  PanelHead,
+  PercentBar,
+  StatusTag,
+} from "@/components/admin/ui";
 
 export const dynamic = "force-dynamic";
 
-const adminNav = [
-  { href: "/admin", label: "Overview" },
-  { href: "/admin/assessments", label: "Assessments" },
-  { href: "/admin/payments", label: "Payments" },
-  { href: "/admin/analytics", label: "Analytics" },
-  { href: "/admin/integrations", label: "Integrations" },
-];
 export default async function AdminPage() {
   const user = await requirePageUser("recruiter", "assessor", "admin");
   const data = await loadRecruiterDashboard(user.role);
+  const isAdmin = user.role === "admin";
+
   return (
     <main className="min-h-dvh">
       <TopBar name={user.fullName} role={user.role} nav={adminNav} />
       <div className="shell">
-        <h1 className="page-title">Recruiter overview</h1>
-        <p className="page-sub">
-          Live pipeline across{" "}
-          {data.counts.published} published assessments
-          {data.normGroup ? ` · normed against ${data.normGroup}` : ""}.
-        </p>
+        <div className="section-head">
+          <div>
+            <h1 className="page-title">Recruiter overview</h1>
+            <p className="page-sub">
+              Live pipeline across {data.counts.published} published assessment
+              {data.counts.published === 1 ? "" : "s"}
+              {data.normGroup ? ` · normed against ${data.normGroup}` : ""}.
+            </p>
+          </div>
+          <Link href="/admin/analytics" className="btn btn-ghost btn-sm">
+            Open analytics →
+          </Link>
+        </div>
+
         <section className="mt-7 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
           <StatCard
             label="Published tests"
@@ -57,118 +69,150 @@ export default async function AdminPage() {
             hint="graded attempts only"
           />
         </section>
-        <div className="mt-6 grid gap-4 lg:grid-cols-5">
-          <section className="panel p-5 lg:col-span-3">
-            <div className="section-head">
-              <h2 className="text-[0.98rem] font-semibold tracking-tight">
-                Assessment performance
-              </h2>
-            </div>
+
+        <div className="split split-3-2 mt-4">
+          <section className="panel p-5">
+            <PanelHead
+              title="Assessment performance"
+              hint="Pass rate is colour-coded against a 60% line; a low rate on a full cohort usually means the item set is too hard, not that the candidates were weak."
+            />
             <TableWrap className="mt-3" label="Assessment performance">
-
-                <table className="table">
-                  <thead>
-                <tr>
-                  <th>Assessment</th>
-                  <th>Completed</th>
-                  <th>Avg</th>
-                  <th>Pass rate</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.topAssessments.map((a) => (
-                  <tr key={a.id}>
-                    <td className="font-medium">{a.title}</td>
-                    <td>{a.completed}</td>
-                    <td>{a.avgScore !== null ? `${a.avgScore}%` : "—"}</td>
-                    <td>
-                      {a.passRate !== null ? (
-                        <span
-                          className={`tag ${a.passRate >= 60 ? "tag-good" : "tag-warn"}`}
-                        >
-                          {a.passRate}%
-                        </span>
-                      ) : (
-                        "—"
-                      )}
-                    </td>
-                  </tr>
-                ))}
-                {data.topAssessments.length === 0 && (
+              <table className="table">
+                <thead>
                   <tr>
-                    <td colSpan={4} className="text-[var(--muted)]">
-                      No assessments yet.
-                    </td>
+                    <th>Assessment</th>
+                    <th className="num">Completed</th>
+                    <th>Avg score</th>
+                    <th>Pass rate</th>
                   </tr>
-                )}
-              </tbody>
-            </table>
-
+                </thead>
+                <tbody>
+                  {data.topAssessments.map((a) => (
+                    <tr key={a.id}>
+                      <td className="font-medium">{a.title}</td>
+                      <td className="num text-[var(--muted)]">{a.completed}</td>
+                      <td>
+                        <PercentBar
+                          value={a.avgScore}
+                          tone="accent"
+                        />
+                      </td>
+                      <td>
+                        {a.passRate !== null ? (
+                          <PercentBar value={a.passRate} warnAt={60} goodAt={60} />
+                        ) : (
+                          <span className="text-[var(--faint)]">—</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                  {data.topAssessments.length === 0 && (
+                    <EmptyRow colSpan={4}>
+                      No assessments yet. Create one from{" "}
+                      <Link href="/admin/assessments" className="link">
+                        Assessments
+                      </Link>
+                      .
+                    </EmptyRow>
+                  )}
+                </tbody>
+              </table>
             </TableWrap>
           </section>
-          <section className="panel p-5 lg:col-span-2">
-            <h2 className="text-base font-semibold">Integrity risk queue</h2>
-            <p className="mt-1 text-xs text-[var(--muted)]">
-              Low integrity scores route to human adjudication. They are never an
-              automatic fail.
-            </p>
+
+          <section className="panel p-5">
+            <PanelHead
+              title="Integrity risk queue"
+              count={data.riskQueue.length}
+              hint="Low integrity scores route to a human. They are never an automatic fail."
+              action={
+                <span className="tag tag-warn tag-dot">needs adjudication</span>
+              }
+            />
             <RiskQueue items={data.riskQueue} />
           </section>
         </div>
+
         <section className="panel mt-4 p-5">
-          <h2 className="text-base font-semibold">Recent attempts</h2>
-          <TableWrap className="mt-3">
-
-              <table className="table">
-                <thead>
-              <tr>
-                <th>Candidate</th>
-                <th>Assessment</th>
-                <th>Status</th>
-                <th>Score</th>
-                <th>Percentile</th>
-                <th>Integrity</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.recentAttempts.map((a) => (
-                <tr key={a.id}>
-                  <td className="font-medium">{a.candidateName}</td>
-                  <td>{a.assessmentTitle}</td>
-                  <td>
-                    <span
-                      className={`tag ${
-                        a.status === "graded"
-                          ? "tag-good"
-                          : a.status === "submitted"
-                            ? "tag-warn"
-                            : ""
-                      }`}
-                    >
-                      {a.status.replace("_", " ")}
-                    </span>
-                  </td>
-                  <td className="tabular-nums">
-                    {a.score !== null ? `${a.score}%` : "—"}
-                  </td>
-                  <td className="tabular-nums">
-                    {a.percentile !== null ? a.percentile : "—"}
-                  </td>
-                  <td className="tabular-nums">
-                    {a.integrityScore !== null ? a.integrityScore : "—"}
-                  </td>
-                </tr>
-              ))}
-              {data.recentAttempts.length === 0 && (
+          <PanelHead
+            title="Recent attempts"
+            hint={
+              isAdmin
+                ? "Identities are visible because you are signed in as an administrator."
+                : "Blind review is active — candidates appear as stable pseudonyms."
+            }
+            action={
+              <Link href="/admin/analytics" className="btn btn-quiet btn-sm">
+                All attempts →
+              </Link>
+            }
+          />
+          <TableWrap className="mt-3" label="Recent attempts">
+            <table className="table">
+              <thead>
                 <tr>
-                  <td colSpan={6} className="text-[var(--muted)]">
-                    No attempts recorded.
-                  </td>
+                  <th>{isAdmin ? "Candidate" : "Reference"}</th>
+                  <th>Assessment</th>
+                  <th>Status</th>
+                  <th>Score</th>
+                  <th className="num">Percentile</th>
+                  <th className="num">Integrity</th>
+                  <th />
                 </tr>
-              )}
-            </tbody>
-          </table>
-
+              </thead>
+              <tbody>
+                {data.recentAttempts.map((a) => (
+                  <tr key={a.id}>
+                    <td>
+                      <IdentityCell
+                        name={a.candidateName}
+                        pseudo={a.candidateName}
+                        showIdentity={isAdmin}
+                      />
+                    </td>
+                    <td className="text-[var(--muted)]">{a.assessmentTitle}</td>
+                    <td>
+                      <StatusTag status={a.status} />
+                    </td>
+                    <td>
+                      <PercentBar value={a.score} tone="accent" />
+                    </td>
+                    <td className="num text-[var(--muted)]">
+                      {a.percentile !== null ? a.percentile : "—"}
+                    </td>
+                    <td className="num">
+                      {a.integrityScore !== null ? (
+                        <span
+                          className={
+                            a.integrityScore < 90
+                              ? "font-semibold text-[var(--bad)]"
+                              : "text-[var(--muted)]"
+                          }
+                        >
+                          {a.integrityScore}
+                        </span>
+                      ) : (
+                        <span className="text-[var(--faint)]">—</span>
+                      )}
+                    </td>
+                    <td className="text-right">
+                      <Link
+                        href={`/admin/attempts/${a.id}`}
+                        className="btn btn-quiet btn-sm"
+                      >
+                        Open
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+                {data.recentAttempts.length === 0 && (
+                  <EmptyRow colSpan={7}>
+                    No attempts recorded yet. They appear here as candidates
+                    start.
+                  </EmptyRow>
+                )}
+              </tbody>
+            </table>
           </TableWrap>
         </section>
       </div>

@@ -43,10 +43,13 @@ export default function QuestionEditor({
   competencies,
   assessmentId,
   assessmentTitle,
+  embedded = false,
 }: {
   competencies: { id: string; name: string }[];
   assessmentId: string;
   assessmentTitle: string;
+  /** Rendered inside a disclosure, so it drops its own panel chrome. */
+  embedded?: boolean;
 }) {
   const router = useRouter();
   const [draft, setDraft] = useState<DraftQuestion>(EMPTY);
@@ -133,10 +136,19 @@ export default function QuestionEditor({
   }
 
   return (
-    <form onSubmit={save} className="panel mt-4 space-y-4 p-5">
-      <div className="flex items-center justify-between gap-3">
-        <h2 className="text-base font-semibold">Add a question</h2>
-        <span className="tag">to {assessmentTitle}</span>
+    <form
+      onSubmit={save}
+      className={
+        embedded
+          ? "panel panel-2 panel-flat space-y-4 border border-[var(--line)] p-4"
+          : "panel mt-4 space-y-4 p-5"
+      }
+    >
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 className="text-[0.95rem] font-semibold tracking-tight">
+          Add a question
+        </h2>
+        <span className="tag tag-accent">to {assessmentTitle}</span>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
@@ -207,8 +219,9 @@ export default function QuestionEditor({
                 disabled={draft.type === "multi_select"}
                 onChange={() => set("correctAnswer", o.id)}
                 aria-label={`Mark option ${o.id} correct`}
+                className="h-4 w-4 shrink-0 accent-[var(--accent)] disabled:opacity-40"
               />
-              <span className="w-5 font-mono text-sm text-[var(--muted)]">
+              <span className="w-5 shrink-0 font-mono text-sm text-[var(--faint)]">
                 {o.id})
               </span>
               <input
@@ -274,14 +287,16 @@ export default function QuestionEditor({
       </div>
 
       {error && (
-        <p role="alert" className="tag tag-bad inline-block">
-          {error}
-        </p>
+        <div role="alert" className="banner banner-bad">
+          <span className="font-medium">{error}</span>
+        </div>
       )}
       {ok && (
-        <p role="status" className="tag tag-good inline-block">
-          Question saved to the assessment.
-        </p>
+        <div role="status" className="banner banner-good">
+          <span className="font-medium">
+            Question saved to the assessment.
+          </span>
+        </div>
       )}
 
       <button className="btn btn-primary" disabled={busy}>
@@ -297,12 +312,15 @@ export function CoursePriceEditor({
   priceMinor,
   vatMinor,
   onSaved,
+  embedded = false,
 }: {
   assessmentId: string;
   title: string;
   priceMinor: number;
   vatMinor: number;
   onSaved?: () => void;
+  /** Rendered inside a disclosure, so it drops its own panel chrome. */
+  embedded?: boolean;
 }) {
   const router = useRouter();
   const [price, setPrice] = useState(priceMinor / 100);
@@ -346,14 +364,21 @@ export function CoursePriceEditor({
   }
 
   return (
-    <form onSubmit={save} className="panel mt-4 p-5">
-      <div className="flex items-center justify-between gap-3">
-        <h2 className="text-base font-semibold">Pricing</h2>
+    <form
+      onSubmit={save}
+      className={
+        embedded
+          ? "panel panel-2 panel-flat border border-[var(--line)] p-4"
+          : "panel mt-4 p-5"
+      }
+    >
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 className="text-[0.95rem] font-semibold tracking-tight">Pricing</h2>
         <span className={`tag ${isFree ? "tag-good" : "tag-warn"}`}>
           {isFree ? "Free" : "Paid"}
         </span>
       </div>
-      <p className="mt-1 text-xs text-[var(--muted)]">
+      <p className="mt-1 text-xs leading-relaxed text-[var(--muted)]">
         {title} — candidates pay only for this course. Access is permanent.
       </p>
 
@@ -388,22 +413,26 @@ export function CoursePriceEditor({
         </div>
       </div>
 
-      <p className="mt-3 text-sm">
-        Total charged:{" "}
-        <strong>
+      {/* The total is what the candidate is actually charged, so it gets a
+          line of its own rather than sitting inline in a sentence. */}
+      <div className="mt-3 flex items-baseline justify-between gap-3 rounded-[8px] border border-[var(--line)] bg-[var(--panel)] px-3 py-2">
+        <span className="text-xs font-semibold tracking-wide text-[var(--muted)] uppercase">
+          Total charged
+        </span>
+        <strong className="text-base tabular-nums">
           {formatKes(Math.round(price * 100) + Math.round(vat * 100))}
         </strong>
-      </p>
+      </div>
 
       {error && (
-        <p role="alert" className="mt-3 tag tag-bad inline-block">
-          {error}
-        </p>
+        <div role="alert" className="banner banner-bad mt-3">
+          <span className="font-medium">{error}</span>
+        </div>
       )}
       {saved && (
-        <p role="status" className="mt-3 tag tag-good inline-block">
-          Price saved.
-        </p>
+        <div role="status" className="banner banner-good mt-3">
+          <span className="font-medium">Price saved.</span>
+        </div>
       )}
 
       <button className="btn btn-primary mt-4" disabled={busy}>

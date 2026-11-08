@@ -2,6 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { formatKes } from "@/lib/pricing";
+import { EmptyState, PanelHead, StatusTag } from "./admin/ui";
 
 type Row = {
   id: string;
@@ -51,9 +53,12 @@ export default function ReferenceQueue({ rows }: { rows: Row[] }) {
 
   if (rows.length === 0) {
     return (
-      <p className="mt-6 rounded-md border border-dashed border-[var(--line)] p-6 text-sm text-[var(--muted)]">
-        No payment references submitted.
-      </p>
+      <div className="mt-6">
+        <EmptyState>
+          No payment references submitted. Candidates who pay outside the portal
+          appear here for verification.
+        </EmptyState>
+      </div>
     );
   }
 
@@ -63,67 +68,91 @@ export default function ReferenceQueue({ rows }: { rows: Row[] }) {
   return (
     <>
       {error && (
-        <p role="alert" className="mt-4 tag tag-bad inline-block">
-          {error}
-        </p>
+        <div role="alert" className="banner banner-bad mt-4">
+          <span className="font-medium">{error}</span>
+        </div>
       )}
 
       <section className="mt-6">
-        <h2 className="text-base font-semibold">
-          Awaiting review{" "}
-          <span className="font-normal text-[var(--muted)]">
-            ({pending.length})
-          </span>
-        </h2>
+        <PanelHead
+          title="Awaiting review"
+          count={pending.length}
+          hint="Each row shows the code, who submitted it, and which course it claims to pay for. Verifying grants access immediately."
+        />
 
         {pending.length === 0 ? (
-          <p className="mt-3 text-sm text-[var(--muted)]">
-            Nothing waiting. Verified and rejected references are listed below.
-          </p>
+          <div className="mt-3">
+            <EmptyState>
+              Nothing waiting. Verified and rejected references are listed below.
+            </EmptyState>
+          </div>
         ) : (
-          <ul className="mt-3 space-y-3">
+          <ul className="row-list panel mt-3 overflow-hidden">
             {pending.map((r) => (
-              <li key={r.id} className="panel p-4">
-                <div className="flex flex-wrap items-start justify-between gap-4">
-                  <div className="min-w-0">
-                    <p className="font-mono text-sm font-semibold break-all">
+              <li key={r.id} className="flex flex-wrap items-start justify-between gap-4 bg-[var(--panel)] p-4">
+                <div className="min-w-0 flex-1">
+                  {/* The code is the thing being checked against a phone
+                      notification, so it is the visual anchor of the row. */}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="code text-sm font-semibold">
                       {r.referenceCode}
-                    </p>
-                    <p className="mt-1 text-sm">
-                      {r.candidateName}{" "}
-                      <span className="text-[var(--muted)]">
-                        · {r.candidateEmail}
-                      </span>
-                    </p>
-                    <p className="mt-1 text-xs text-[var(--muted)]">
-                      {r.assessmentTitle}
-                      {r.channel ? ` · via ${r.channel}` : ""}
-                      {r.amountMinor !== null
-                        ? ` · ${(r.amountMinor / 100).toFixed(2)} KES`
-                        : ""}
-                      {" · "}
-                      {new Date(r.createdAt).toLocaleDateString("en-GB", {
-                        dateStyle: "medium",
-                      })}
-                    </p>
+                    </span>
+                    <StatusTag status={r.status} />
                   </div>
 
-                  <div className="flex shrink-0 gap-2">
-                    <button
-                      className="btn btn-primary"
-                      disabled={busyId === r.id}
-                      onClick={() => void decide(r.id, "verify")}
-                    >
-                      {busyId === r.id ? "Saving…" : "Verify & grant"}
-                    </button>
-                    <button
-                      className="btn btn-ghost"
-                      disabled={busyId === r.id}
-                      onClick={() => void decide(r.id, "reject")}
-                    >
-                      Reject
-                    </button>
-                  </div>
+                  <dl className="meta mt-2">
+                    <div>
+                      <dt>From</dt>
+                      <dd className="!font-medium">{r.candidateName}</dd>
+                    </div>
+                    <div>
+                      <dt>Email</dt>
+                      <dd className="!font-normal text-[var(--muted)]">
+                        {r.candidateEmail}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>Course</dt>
+                      <dd className="!font-medium">{r.assessmentTitle}</dd>
+                    </div>
+                    {r.amountMinor !== null && (
+                      <div>
+                        <dt>Claimed</dt>
+                        <dd>{formatKes(r.amountMinor)}</dd>
+                      </div>
+                    )}
+                    {r.channel && (
+                      <div>
+                        <dt>Via</dt>
+                        <dd className="!font-normal">{r.channel}</dd>
+                      </div>
+                    )}
+                    <div>
+                      <dt>Submitted</dt>
+                      <dd className="!font-normal">
+                        {new Date(r.createdAt).toLocaleDateString("en-GB", {
+                          dateStyle: "medium",
+                        })}
+                      </dd>
+                    </div>
+                  </dl>
+                </div>
+
+                <div className="flex shrink-0 flex-wrap gap-2">
+                  <button
+                    className="btn btn-primary btn-sm"
+                    disabled={busyId === r.id}
+                    onClick={() => void decide(r.id, "verify")}
+                  >
+                    {busyId === r.id ? "Saving…" : "Verify & grant"}
+                  </button>
+                  <button
+                    className="btn btn-ghost btn-sm"
+                    disabled={busyId === r.id}
+                    onClick={() => void decide(r.id, "reject")}
+                  >
+                    Reject
+                  </button>
                 </div>
               </li>
             ))}
@@ -133,29 +162,24 @@ export default function ReferenceQueue({ rows }: { rows: Row[] }) {
 
       {settled.length > 0 && (
         <section className="mt-8">
-          <h2 className="text-base font-semibold">
-            Decided{" "}
-            <span className="font-normal text-[var(--muted)]">
-              ({settled.length})
-            </span>
-          </h2>
-          <ul className="mt-3 space-y-2">
+          <PanelHead
+            title="Decided"
+            count={settled.length}
+            hint="Kept for reference. There is no undo — a mistaken verification is corrected by granting access directly."
+          />
+          <ul className="row-list panel mt-3 overflow-hidden">
             {settled.map((r) => (
               <li
                 key={r.id}
-                className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--line)] pb-2 text-sm"
+                className="flex flex-wrap items-center justify-between gap-3 p-3 text-sm"
               >
-                <span className="min-w-0">
-                  <span className="font-mono break-all">{r.referenceCode}</span>{" "}
+                <span className="flex min-w-0 flex-wrap items-center gap-2">
+                  <span className="code">{r.referenceCode}</span>
                   <span className="text-[var(--muted)]">
-                    · {r.candidateEmail} · {r.assessmentTitle}
+                    {r.candidateEmail} · {r.assessmentTitle}
                   </span>
                 </span>
-                <span
-                  className={`tag ${r.status === "verified" ? "tag-good" : "tag-bad"}`}
-                >
-                  {r.status}
-                </span>
+                <StatusTag status={r.status} />
               </li>
             ))}
           </ul>
